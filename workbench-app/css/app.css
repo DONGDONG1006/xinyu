@@ -767,6 +767,29 @@ input::placeholder,textarea::placeholder{color:#4d5c78}
 .invrow .invthumb{grid-column:1 / -1;margin:2px 0 4px}
 .invrow .invthumb img{max-height:90px;max-width:100%;border-radius:6px;border:1px solid var(--line2)}
 .ocrhint{font-size:10px;color:var(--txt3);margin-left:8px}
+
+/* 附件上传与展示 */
+.attachPrev{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.af-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(255,140,26,.06);border:1px solid var(--line2);border-radius:8px;font-size:12px}
+.af-item img{width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--line2)}
+.af-ic{font-size:20px}
+.af-nm{flex:1;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.af-sz{color:var(--txt3);font-size:10px;white-space:nowrap}
+.attachList{margin-top:4px;display:flex;flex-direction:column;gap:6px}
+
+/* 招投标看板 */
+.bidboard{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.bidcol{background:var(--bg2);border-radius:8px;padding:8px;min-height:80px}
+.bidh{font-size:12px;font-weight:700;color:var(--cy);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.bidc{background:var(--cy);color:#1a1006;font-size:10px;padding:1px 6px;border-radius:8px}
+.bidcard{background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;transition:border-color .2s}
+.bidcard:hover{border-color:var(--cy)}
+.bidnm{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:3px}
+.bidmeta{font-size:10px;color:var(--txt3);line-height:1.4}
+.bidwin{font-size:10px;color:#19c37d;font-weight:600;margin-top:3px}
+.bidempty{font-size:11px;color:var(--txt3);text-align:center;padding:8px 0}
+@media(max-width:768px){ .bidboard{grid-template-columns:1fr 1fr} }
+@media(max-width:480px){ .bidboard{grid-template-columns:1fr} }
 .rflex{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0}
 .rflex>span{font-size:12.5px;color:var(--txt3);white-space:nowrap}
 .rflex input{flex:1;max-width:220px;padding:8px 10px;border-radius:8px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:var(--txt)}

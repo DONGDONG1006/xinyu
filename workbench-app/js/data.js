@@ -408,6 +408,18 @@ function ensureV5(db){
   (db.users||[]).forEach(function(u){ if(u.mustSetPwd===undefined) u.mustSetPwd=false; if(u.pwd===undefined) u.pwd=null; if(!u.field) u.field='综合'; });
   /* 报销/差旅/招待申请补支付截图字段与发票行（兼容旧库） */
   (db.applications||[]).forEach(function(a){ if(a.receiptImg===undefined) a.receiptImg=''; if(a.type==='reimb'&&!a.items) a.items=[]; });
+  /* 招投标 + 政府批复 + 项目 hasBid 字段补齐 */
+  if(!db.bids) db.bids={};
+  (db.projects||[]).forEach(function(p){ if(p.hasBid===undefined) p.hasBid=false; });
+  /* docs 每条补 files 数组 + govcerts 数组 */
+  Object.keys(db.docs||{}).forEach(function(pid){
+    var d=db.docs[pid]; if(!d) return;
+    if(!d.govcerts) d.govcerts=[];
+    (d.drawings||[]).forEach(function(x){ if(!x.files) x.files=[]; });
+    (d.budgets||[]).forEach(function(x){ if(!x.files) x.files=[]; });
+    (d.estimates||[]).forEach(function(x){ if(!x.files) x.files=[]; });
+    (d.govcerts||[]).forEach(function(x){ if(!x.files) x.files=[]; });
+  });
   backfillContractLines(db);
   if(db.meta) db.meta.ver='5.0';
 }

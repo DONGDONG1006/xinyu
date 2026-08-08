@@ -334,11 +334,175 @@ function renderDetail(){
   renderDtBody();
 }
 function renderDtBody(){
-  var f={overview:dtOverview,nodes:dtNodes,people:dtPeople,orgs:dtOrgs,contract:dtContracts,staff:dtStaff,doc:dtDoc};
+  var f={overview:dtOverview,nodes:dtNodes,people:dtPeople,orgs:dtOrgs,contract:dtContracts,staff:dtStaff,doc:dtDoc,bid:dtBid};
   document.getElementById('dtBody').innerHTML=(f[dtT]||dtOverview)();
   if(dtT==='nodes') document.getElementById('ndGantt').innerHTML=nodeGantt();
   if(dtT==='doc'){ renderDocKpi(); renderDoc();
     document.querySelectorAll('#doctabs button').forEach(function(b){ b.onclick=function(){docJump(b.dataset.t)} }); }
+}
+
+/* ---------- 招投标（参考成熟项目管理系统全流程） ---------- */
+/* DB.bids[projectId] = [{id,name,type,budget,method,agency,stage,owner,publishDate,openDate,
+   bidders:[{name,amount,score,rank}],winBidder,noticeDate,files:[],note,created}]
+   stage: 招标公告→投标编制→开标评标→中标候选人→中标通知→未中标归档 */
+function bidStore(){ if(!DB.bids[curProject]) DB.bids[curProject]=[]; return DB.bids[curProject]; }
+var BID_STAGES=['招标公告','投标编制','开标评标','中标候选人','中标通知','未中标归档'];
+function bidStageCls(s){ return s==='中标通知'?'t-grn':s==='中标候选人'?'t-cy':s==='开标评标'?'t-yel':s==='未中标归档'?'t-gry':'t-blu'; }
+function dtBid(){
+  var p=projById(curProject);
+  var bids=bidStore();
+  /* 是否进行招投标开关 */
+  var toggle='<div class="card" style="margin-bottom:14px"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">'+
+    '<div><div class="sect" style="margin:0 0 4px">本项目是否进行招投标</div>'+
+    '<div class="note">勾选后启用招投标管理：招标公告→投标编制→开标评标→中标候选人→中标通知全流程。</div></div>'+
+    '<div class="chips" data-g="bidToggle">'+(p.hasBid?
+      '<span class="chip on" onclick="setHasBid(false)">✔ 进行招投标</span><span class="chip" onclick="setHasBid(false)">不进行</span>'
+      :'<span class="chip" onclick="setHasBid(true)">进行招投标</span><span class="chip on">✔ 不进行</span>')+'</div></div></div>';
+  if(!p.hasBid){
+    return toggle+'<div class="note">本项目当前不涉及招投标。如需启用，请点击上方"进行招投标"。</div>';
+  }
+  /* KPI */
+  var open=bids.filter(function(b){return b.stage!=='中标通知'&&b.stage!=='未中标归档'}).length;
+  var won=bids.filter(function(b){return b.stage==='中标通知'}).length;
+  var totalBudget=bids.reduce(function(a,b){return a+(b.budget||0)},0);
+  var totalWin=bids.reduce(function(a,b){return a+((b.winBidder&&b.winBidder.amount)||0)},0);
+  var kpiHtml='<div class="grid kpis" style="margin-bottom:12px">'+
+    kpi('招投标项目',bids.length,'个','在招 '+open+' / 已中标 '+won)+
+    kpi('招标预算合计',fmt(totalBudget),'万元','全部标段预算')+
+    kpi('中标金额合计',fmt(totalWin),'万元','已签/待签','ok')+
+    kpi('节资率',totalBudget?((totalBudget-totalWin)/totalBudget*100).toFixed(1):0,'%','预算-中标 节约比例','ok')+
+    '</div>';
+  /* 看板 */
+  var board='<div class="sect">招投标看板 <span class="tip">点击标段查看详情与附件</span></div><div class="card"><div class="bidboard">'+
+    BID_STAGES.filter(function(s){return s!=='未中标归档';}).map(function(s){
+      var items=bids.filter(function(b){return b.stage===s;});
+      return '<div class="bidcol"><div class="bidh">'+s+' <span class="bidc">'+items.length+'</span></div>'+
+        (items.length?items.map(function(b){
+          return '<div class="bidcard" onclick="openBidView(\''+b.id+'\')">'+
+            '<div class="bidnm">'+esc(b.name)+'</div>'+
+            '<div class="bidmeta mono">'+fmt(b.budget||0)+' 万 · '+esc(b.method||'公开招标')+'</div>'+
+            '<div class="bidmeta">'+esc(b.owner||'—')+(b.agency?(' · '+esc(b.agency)):'')+'</div>'+
+            (b.winBidder?'<div class="bidwin">中标：'+esc(b.winBidder.name)+' '+fmt(b.winBidder.amount)+'万</div>':'')+
+            '</div>';
+        }).join(''):'<div class="bidempty">—</div>')+'</div>';
+    }).join('')+'</div></div>';
+  return toggle+kpiHtml+board+
+    '<div class="sect" style="margin-top:14px"><button class="btn pri" onclick="openBidAdd()">＋ 新增招投标项目</button></div>';
+}
+function setHasBid(v){
+  var p=projById(curProject); p.hasBid=v; saveDB(); renderDtBody(); toast(v?'已启用招投标管理':'已关闭招投标');
+}
+function bidForm(b){
+  b=b||{};
+  return fld('标段/项目名称','bdName','如：临港光伏主体工程施工')+
+    '<div class="f2">'+fldSel('招标类型','bdType',['工程招标','设备采购','服务招标','设计招标','EPC总承包'],'工程招标')+
+    fld('招标预算(万元)','bdBudget',b.budget||0)+'</div>'+
+    '<div class="f2">'+fldSel('招标方式','bdMethod',['公开招标','邀请招标','竞争性谈判','单一来源','询价'],b.method||'公开招标')+
+    fld('招标代理机构','bdAgency',b.agency||'')+'</div>'+
+    '<div class="f2">'+fld('负责人','bdOwner',b.owner||'')+fld('公告发布日','bdPubDate',b.publishDate||todayStr())+'</div>'+
+    '<div class="f2">'+fld('开标日期','bdOpenDate',b.openDate||'')+fld('投标截止','bdDeadline','')+'</div>'+
+    '<div class="field"><label>当前阶段</label>'+chips('1',BID_STAGES,b.stage||'招标公告')+'</div>'+
+    fldArea('备注','bdNote','资格要求 / 评标办法 / 特殊条款',b.note)+attachWidget();
+}
+function openBidAdd(){
+  openDrawer('＋ 新增招投标项目',bidForm(),function(){
+    var bids=bidStore();
+    var n=_v('bdName'); if(!n){toast('请填写标段名称');return}
+    var files=[]; try{ files=JSON.parse(_v('attachHold')||'[]'); }catch(e){}
+    bids.unshift({id:uid('bid'),name:n,type:_v('bdType'),budget:Number(_num('bdBudget')),
+      method:_v('bdMethod'),agency:_v('bdAgency'),owner:_v('bdOwner'),
+      publishDate:_v('bdPubDate'),openDate:_v('bdOpenDate'),deadline:_v('bdDeadline'),
+      stage:_chip('1')||'招标公告',bidders:[],winBidder:null,noticeDate:'',files:files,note:_v('bdNote'),created:todayStr()});
+    saveDB(); closeDrawer(); toast('招投标项目已创建：'+n); renderDtBody();
+  },{priText:'保存'});
+}
+function openBidView(id){
+  var bids=bidStore(); var b=bids.filter(function(x){return x.id===id})[0];
+  if(!b){ toast('未找到该招投标项目'); return; }
+  /* 投标人列表 */
+  var bidderRows=(b.bidders||[]).map(function(bd,i){
+    return '<tr><td class="n">'+(i+1)+'</td><td class="nm">'+esc(bd.name)+'</td>'+
+      '<td class="n">'+(bd.amount?fmt(bd.amount):'—')+'</td>'+
+      '<td class="n">'+(bd.score||'—')+'</td>'+
+      '<td>'+(bd.rank?'第'+bd.rank+'名':'—')+'</td>'+
+      '<td>'+(b.winBidder&&b.winBidder.name===bd.name?tag('中标','t-grn'):'')+'</td>'+
+      '<td><button class="btn sm dgr" onclick="delBidder(\''+b.id+'\','+i+')">✕</button></td></tr>';
+  }).join('');
+  var bidderTbl=b.bidders&&b.bidders.length? tbl('<th>序</th><th>投标人</th><th class="n">报价(万)</th><th class="n">评分</th><th>排名</th><th>结果</th><th></th>',bidderRows) : '<div class="note">暂无投标人，点击下方添加。</div>';
+  openDrawer('招投标 · '+b.name,
+    '<div class="dsec">招标信息</div><div class="kv">'+
+    '<div class="k">标段名称</div><div class="v">'+esc(b.name)+'</div>'+
+    '<div class="k">招标类型</div><div class="v">'+esc(b.type||'—')+'</div>'+
+    '<div class="k">招标方式</div><div class="v">'+esc(b.method||'—')+'</div>'+
+    '<div class="k">招标预算</div><div class="v mono">'+fmt(b.budget||0)+' 万元</div>'+
+    '<div class="k">代理机构</div><div class="v">'+esc(b.agency||'—')+'</div>'+
+    '<div class="k">负责人</div><div class="v">'+esc(b.owner||'—')+'</div>'+
+    '<div class="k">公告日</div><div class="v mono">'+esc(b.publishDate||'—')+'</div>'+
+    '<div class="k">开标日</div><div class="v mono">'+esc(b.openDate||'—')+'</div>'+
+    '<div class="k">当前阶段</div><div class="v">'+tag(b.stage||'招标公告',bidStageCls(b.stage))+'</div>'+
+    (b.winBidder?'<div class="k">中标单位</div><div class="v"><b class="cy">'+esc(b.winBidder.name)+'</b> · '+fmt(b.winBidder.amount)+' 万 · 通知日 '+esc(b.noticeDate||'—')+'</div>':'')+
+    '</div>'+
+    '<div class="dsec">投标人及评标 <span class="tip">'+(b.bidders||[]).length+' 家</span></div>'+bidderTbl+
+    '<div class="chips" style="margin-top:8px">'+
+    '<span class="chip" onclick="addBidder(\''+b.id+'\')">＋ 添加投标人</span>'+
+    (b.stage==='中标候选人'&&!b.winBidder?'<span class="chip" onclick="setWinBidder(\''+b.id+'\')">确定中标人</span>':'')+
+    '</div>'+
+    '<div class="dsec">附件 <span class="tip">'+(b.files&&b.files.length?b.files.length:'无')+'</span></div>'+attachListHtml(b.files)+
+    '<div class="dsec">编辑</div>'+bidForm(b)+
+    '<div class="chips" style="margin-top:8px">'+
+    (isAdmin()?'<span class="chip" style="color:#ff6b6b" onclick="delBid(\''+b.id+'\')">删除该招投标项目</span>':'<span class="note">删除仅管理员可操作</span>')+'</div>',
+    function(){
+      b.name=_v('bdName')||b.name; b.type=_v('bdType'); b.budget=Number(_num('bdBudget'));
+      b.method=_v('bdMethod'); b.agency=_v('bdAgency'); b.owner=_v('bdOwner');
+      b.publishDate=_v('bdPubDate'); b.openDate=_v('bdOpenDate'); b.deadline=_v('bdDeadline');
+      b.stage=_chip('1')||b.stage; b.note=_v('bdNote');
+      var files=[]; try{ files=JSON.parse(_v('attachHold')||'[]'); }catch(e){}
+      if(files.length) b.files=files;
+      saveDB(); closeDrawer(); toast('招投标信息已更新'); renderDtBody();
+    },{priText:'保存修改'});
+}
+function addBidder(id){
+  var bids=bidStore(); var b=bids.filter(function(x){return x.id===id})[0]; if(!b) return;
+  b.bidders=b.bidders||[];
+  openDrawer('添加投标人 · '+b.name,
+    fld('投标人名称','bdNm','如：中铁建工集团')+
+    '<div class="f2">'+fld('报价(万元)','bdAmt',0)+fld('评标评分','bdScore','')+'</div>'+
+    '<div class="f2">'+fld('排名','bdRank','')+fld('联系人/电话','bdContact','')+'</div>'+
+    attachWidget(),
+    function(){
+      var nm=_v('bdNm'); if(!nm){toast('请填写投标人名称');return}
+      var files=[]; try{ files=JSON.parse(_v('attachHold')||'[]'); }catch(e){}
+      b.bidders.push({name:nm,amount:Number(_num('bdAmt')),score:_v('bdScore'),rank:_v('bdRank')||'',contact:_v('bdContact'),files:files});
+      saveDB(); closeDrawer(); toast('已添加投标人：'+nm); openBidView(id);
+    },{priText:'添加'});
+}
+function delBidder(id,idx){
+  var bids=bidStore(); var b=bids.filter(function(x){return x.id===id})[0]; if(!b||!b.bidders[idx]) return;
+  if(!confirm('删除投标人「'+b.bidders[idx].name+'」？')) return;
+  b.bidders.splice(idx,1); saveDB(); toast('已删除'); openBidView(id);
+}
+function setWinBidder(id){
+  var bids=bidStore(); var b=bids.filter(function(x){return x.id===id})[0]; if(!b) return;
+  if(!b.bidders||!b.bidders.length){ toast('请先添加投标人'); return; }
+  var opts=b.bidders.map(function(bd,i){return '<option value="'+i+'">'+esc(bd.name)+' · '+(bd.amount?fmt(bd.amount):'—')+' 万 · 评分 '+(bd.score||'—')+'</option>'}).join('');
+  openDrawer('确定中标人 · '+b.name,
+    '<div class="note">从中标候选人中选择最终中标单位，确认后将生成中标通知。</div>'+
+    '<div class="field"><label>中标人</label><select name="winIdx">'+opts+'</select></div>'+
+    fld('中标金额(万元)','winAmt','')+fld('中标通知日','winDate',todayStr()),
+    function(){
+      var sel=document.querySelector('#dbody [name="winIdx"]'); if(!sel) return;
+      var w=b.bidders[Number(sel.value)]; if(!w) return;
+      b.winBidder={name:w.name,amount:Number(_num('winAmt'))||w.amount,score:w.score,contact:w.contact};
+      b.noticeDate=_v('winDate'); b.stage='中标通知';
+      saveDB(); closeDrawer(); toast('中标人已确定：'+w.name); renderDtBody();
+    },{priText:'确认中标'});
+}
+function delBid(id){
+  if(!isAdmin()){ toast('删除招投标项目仅管理员可操作'); return; }
+  var bids=bidStore(); var b=bids.filter(function(x){return x.id===id})[0]; if(!b) return;
+  if(!confirm('确认删除招投标项目「'+b.name+'」？此操作不可撤销。')) return;
+  DB.bids[curProject]=bids.filter(function(x){return x.id!==id});
+  saveDB(); closeDrawer(); toast('已删除招投标项目'); renderDtBody();
 }
 
 /* ---------- 总览 ---------- */
@@ -1036,7 +1200,8 @@ function dtContracts(){
 /* ---------- 图纸 · 预算 · 概算 ---------- */
 var docTab='draw';
 function docStore(){
-  if(!DB.docs[curProject]) DB.docs[curProject]={drawings:[],budgets:[],estimates:[],estcmp:[]};
+  if(!DB.docs[curProject]) DB.docs[curProject]={drawings:[],budgets:[],estimates:[],estcmp:[],govcerts:[]};
+  if(!DB.docs[curProject].govcerts) DB.docs[curProject].govcerts=[];
   return DB.docs[curProject];
 }
 function dtDoc(){
@@ -1044,9 +1209,10 @@ function dtDoc(){
     '<div class="card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'+
     '<div class="seg" id="doctabs"><button class="'+(docTab==='draw'?'on':'')+'" data-t="draw">图纸</button>'+
     '<button class="'+(docTab==='budget'?'on':'')+'" data-t="budget">预算</button>'+
-    '<button class="'+(docTab==='est'?'on':'')+'" data-t="est">概算</button></div>'+
+    '<button class="'+(docTab==='est'?'on':'')+'" data-t="est">概算</button>'+
+    '<button class="'+(docTab==='gov'?'on':'')+'" data-t="gov">政府批复</button></div>'+
     '<div class="spacer"></div>'+
-    '<button class="btn pri" onclick="openDocAdd()">＋ 新增<span id="doctabname">'+(docTab==='draw'?'图纸':docTab==='budget'?'预算':'概算')+'</span></button></div>'+
+    '<button class="btn pri" onclick="openDocAdd()">＋ 新增<span id="doctabname">'+(docTab==='draw'?'图纸':docTab==='budget'?'预算':docTab==='est'?'概算':docTab==='gov'?'批复文件':'图纸')+'</span></button></div>'+
     '<div id="doclist"></div></div>';
 }
 function renderDocKpi(){
@@ -1065,7 +1231,7 @@ function renderDocKpi(){
 function docJump(t){
   docTab=t;
   document.querySelectorAll('#doctabs button').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
-  var n=document.getElementById('doctabname'); if(n) n.textContent=t==='draw'?'图纸':t==='budget'?'预算':'概算';
+  var n=document.getElementById('doctabname'); if(n) n.textContent=t==='draw'?'图纸':t==='budget'?'预算':t==='est'?'概算':t==='gov'?'批复文件':'图纸';
   renderDoc();
 }
 function renderDoc(){
@@ -1087,7 +1253,7 @@ function renderDoc(){
           '<td>'+tag(x[5],x[5]==='已批准'?'t-grn':'t-yel')+'</td><td>'+esc(x[6])+'</td>'+
           '<td><button class="btn sm" onclick="openDocView(\'budget\','+i+')">查看</button></td></tr>';
       }).join('')) : '<div class="note">暂无预算，点击右上角新增。</div>';
-  } else {
+  } else if(docTab==='est'){
     h=(d.estimates||[]).length? tbl('<th>概算文件</th><th>费用科目</th><th class="n">金额(万元)</th><th>版本</th><th>日期</th><th>状态</th><th>编制单位</th><th></th>',
       d.estimates.map(function(x,i){
         return '<tr><td class="nm">'+esc(x[0])+'</td><td>'+esc(x[1])+'</td><td class="n">'+fmt(Number(String(x[2]).replace(/[^0-9.]/g,'')))+'</td>'+
@@ -1096,6 +1262,16 @@ function renderDoc(){
           '<td><button class="btn sm" onclick="openDocView(\'est\','+i+')">查看</button></td></tr>';
       }).join('')) : '<div class="note">暂无概算，点击右上角新增。</div>';
     h+=estCmpHtml(d);
+  } else if(docTab==='gov'){
+    var gc=d.govcerts||[];
+    h=gc.length? tbl('<th>批复/文件名称</th><th>批复机关</th><th>文号</th><th>类型</th><th>日期</th><th>状态</th><th>附件</th><th></th>',
+      gc.map(function(x,i){
+        return '<tr><td class="nm">'+esc(x.name)+'</td><td>'+esc(x.org||'—')+'</td><td class="mono">'+esc(x.code||'—')+'</td>'+
+          '<td>'+tag(x.type||'批复','t-blu')+'</td><td class="mono">'+esc(x.date||'—')+'</td>'+
+          '<td>'+tag(x.status||'—',x.status==='已批复'?'t-grn':x.status==='办理中'?'t-yel':'t-gry')+'</td>'+
+          '<td>'+(x.files&&x.files.length?x.files.length+' 件':'—')+'</td>'+
+          '<td><button class="btn sm" onclick="openGovcertView('+i+')">查看</button></td></tr>';
+      }).join('')) : '<div class="note">暂无政府批复文件。点击右上角新增批复文件（如发改委核准、用地预审、环评批复、林草批复等）。</div>';
   }
   box.innerHTML=h;
 }
@@ -1128,6 +1304,7 @@ function docForm(t){
       '<div class="f2">'+fldSel('设计阶段','dcStage',['可研','初设','施工图','竣工图'])+fld('编制日期','dcDate',todayStr())+'</div>'+
       '<div class="f2">'+fld('编制单位','dcOrg','甘肃省电力设计院')+fld('编制/校核人','dcBy','王工')+'</div>'+
       '<div class="field"><label>状态</label>'+chips('1',['编制中','评审中','已审定','作废'],'编制中')+'</div>'+
+      attachWidget()+
       '<div class="note">图纸受控要求：同一图号仅"已审定"的最新版本可用于施工与采购，旧版本自动标记为历史版本。</div>';
   }
   var isB=t==='budget';
@@ -1137,22 +1314,119 @@ function docForm(t){
     '<div class="f2">'+fld('版本号','dcVer','V1.0')+fld('编制日期','dcDate',todayStr())+'</div>'+
     fld('编制单位','dcOrg',isB?'预算部':'甘肃省电力设计院')+
     '<div class="field"><label>状态</label>'+chips('1',['编制中','审核中','已批准','已作废'],'编制中')+'</div>'+
+    attachWidget()+
     (isB?'<div class="note"><b>控制红线：</b>预算金额不得突破对应科目的设计概算，超出将自动飘红并需董事长审批。</div>'
         :'<div class="note">概算为投资控制的最高限额，调整需履行原审批程序。</div>');
 }
+/* 通用附件上传组件：多文件→dataURL 列表，存入 #attachHold (JSON)，预览在 #attachPrev */
+function attachWidget(){
+  return '<div class="sect" style="margin:8px 0 4px">附件上传 <span class="tip">图纸/文件/PDF/图片均可，单文件≤5MB</span></div>'+
+    '<label class="btn sm" style="cursor:pointer">📎 选择附件<input type="file" multiple style="display:none" onchange="pickAttach(this)"></label>'+
+    '<input type="hidden" id="attachHold" value="[]">'+
+    '<div id="attachPrev" class="attachPrev"></div>';
+}
+function pickAttach(input){
+  var files=input.files; if(!files||!files.length) return;
+  var hold=document.getElementById('attachHold'); var list=[];
+  try{ list=JSON.parse(hold.value||'[]'); }catch(e){ list=[]; }
+  var remaining=files.length, idx=0;
+  function next(){
+    if(idx>=files.length){ hold.value=JSON.stringify(list); renderAttachPrev(list); return; }
+    var f=files[idx++];
+    if(f.size>5*1024*1024){ toast(f.name+' 超 5MB 已跳过'); next(); return; }
+    var rd=new FileReader();
+    rd.onload=function(){
+      list.push({name:f.name, size:f.size, type:f.type, data:rd.result});
+      next();
+    };
+    rd.onerror=function(){ next(); };
+    rd.readAsDataURL(f);
+  }
+  next();
+}
+function removeAttach(i){
+  var hold=document.getElementById('attachHold'); if(!hold) return;
+  var list=[]; try{ list=JSON.parse(hold.value||'[]'); }catch(e){ return; }
+  list.splice(i,1); hold.value=JSON.stringify(list); renderAttachPrev(list);
+}
+function renderAttachPrev(list){
+  var el=document.getElementById('attachPrev'); if(!el) return;
+  if(!list||!list.length){ el.innerHTML=''; return; }
+  el.innerHTML=list.map(function(f,i){
+    var isImg=(f.type||'').indexOf('image')===0;
+    var prev=isImg?'<img src="'+f.data+'">':'<span class="af-ic">📄</span>';
+    return '<div class="af-item">'+prev+
+      '<span class="af-nm">'+esc(f.name)+'</span><span class="af-sz">'+Math.round(f.size/1024)+'KB</span>'+
+      '<button class="btn sm dgr" onclick="removeAttach('+i+')">✕</button></div>';
+  }).join('');
+}
+/* 展示已存附件（查看/详情用） */
+function attachListHtml(files){
+  if(!files||!files.length) return '<div class="note">无附件</div>';
+  return '<div class="attachList">'+files.map(function(f,i){
+    var isImg=(f.type||'').indexOf('image')===0;
+    var prev=isImg?'<img src="'+f.data+'">':'<span class="af-ic">📄</span>';
+    var dl=f.data?'<a href="'+f.data+'" download="'+esc(f.name)+'" class="btn sm">下载</a>':'';
+    return '<div class="af-item">'+prev+'<span class="af-nm">'+esc(f.name)+'</span><span class="af-sz">'+Math.round((f.size||0)/1024)+'KB</span>'+dl+'</div>';
+  }).join('')+'</div>';
+}
 function openDocAdd(){
-  var t=docTab, title=t==='draw'?'新增图纸':t==='budget'?'新增预算':'新增概算';
+  var t=docTab;
+  if(t==='gov') return openGovcertAdd();
+  var title=t==='draw'?'新增图纸':t==='budget'?'新增预算':'新增概算';
   openDrawer(title,docForm(t),function(){
     var d=docStore(), n=_v('dcName'); if(!n){toast('请填写名称');return}
+    var files=[]; try{ files=JSON.parse(_v('attachHold')||'[]'); }catch(e){}
     if(t==='draw'){
       d.drawings=d.drawings||[];
-      d.drawings.unshift([n,_v('dcType'),_v('dcVer')||'V1.0',_v('dcStage'),_v('dcOrg'),_v('dcDate'),_chip('1'),_v('dcBy')]);
+      d.drawings.unshift([n,_v('dcType'),_v('dcVer')||'V1.0',_v('dcStage'),_v('dcOrg'),_v('dcDate'),_chip('1'),_v('dcBy'),files]);
     } else {
       var arr=t==='budget'?(d.budgets=d.budgets||[]):(d.estimates=d.estimates||[]);
-      arr.unshift([n,_v('dcType'),String(_num('dcAmt')),_v('dcVer')||'V1.0',_v('dcDate'),_chip('1'),_v('dcOrg')]);
+      arr.unshift([n,_v('dcType'),String(_num('dcAmt')),_v('dcVer')||'V1.0',_v('dcDate'),_chip('1'),_v('dcOrg'),files]);
     }
-    saveDB(); closeDrawer(); toast('已保存：'+n); renderDtBody();
+    saveDB(); closeDrawer(); toast('已保存：'+n+(files.length?('（含 '+files.length+' 个附件）'):'')); renderDtBody();
   },{priText:'保存'});
+}
+/* 政府批复文件：表单 + 新增 + 查看 */
+function govcertForm(c){
+  c=c||{};
+  return fld('批复/文件名称','gcName','如：项目核准批复')+
+    '<div class="f2">'+fld('批复机关','gcOrg','如：甘肃省发展改革委')+fld('文号','gcCode','如：甘发改核〔2025〕XX 号')+'</div>'+
+    '<div class="f2">'+fldSel('文件类型','gcType',['核准批复','备案证明','用地预审','环评批复','水保批复','林地批复','施工许可','其他'],c.type||'核准批复')+
+    fld('批复日期','gcDate',c.date||todayStr())+'</div>'+
+    '<div class="field"><label>状态</label>'+chips('1',['已批复','办理中','待办','退回'],c.status||'办理中')+'</div>'+
+    fld('主要内容/要求','gcContent',c.content||'')+attachWidget()+
+    '<div class="note">政府批复是项目前期手续的核心文件，上传批复原件扫描件便于随时调阅与归档。</div>';
+}
+function openGovcertAdd(){
+  openDrawer('新增政府批复文件',govcertForm(),function(){
+    var d=docStore(); d.govcerts=d.govcerts||[];
+    var n=_v('gcName'); if(!n){toast('请填写文件名称');return}
+    var files=[]; try{ files=JSON.parse(_v('attachHold')||'[]'); }catch(e){}
+    d.govcerts.unshift({id:uid('gc'),name:n,org:_v('gcOrg'),code:_v('gcCode'),type:_v('gcType'),
+      date:_v('gcDate'),status:_chip('1'),content:_v('gcContent'),files:files});
+    saveDB(); closeDrawer(); toast('已保存批复文件：'+n+(files.length?('（含 '+files.length+' 个附件）'):'')); renderDtBody();
+  },{priText:'保存'});
+}
+function openGovcertView(i){
+  var d=docStore(); var c=(d.govcerts||[])[i]; if(!c) return;
+  openDrawer(c.name,
+    '<div class="dsec">批复信息</div><div class="kv">'+
+    '<div class="k">批复机关</div><div class="v">'+esc(c.org||'—')+'</div>'+
+    '<div class="k">文号</div><div class="v mono">'+esc(c.code||'—')+'</div>'+
+    '<div class="k">类型</div><div class="v">'+tag(c.type||'批复','t-blu')+'</div>'+
+    '<div class="k">日期</div><div class="v mono">'+esc(c.date||'—')+'</div>'+
+    '<div class="k">状态</div><div class="v">'+tag(c.status||'—',c.status==='已批复'?'t-grn':c.status==='办理中'?'t-yel':'t-gry')+'</div>'+
+    '<div class="k">主要内容</div><div class="v">'+esc(c.content||'—')+'</div></div>'+
+    '<div class="dsec">附件 <span class="tip">'+(c.files&&c.files.length?c.files.length+' 个文件':'无')+'</span></div>'+attachListHtml(c.files)+
+    '<div class="dsec">编辑</div>'+govcertForm(c),
+    function(){
+      c.name=_v('gcName')||c.name; c.org=_v('gcOrg'); c.code=_v('gcCode'); c.type=_v('gcType');
+      c.date=_v('gcDate'); c.status=_chip('1'); c.content=_v('gcContent');
+      var files=[]; try{ files=JSON.parse(_v('attachHold')||'[]'); }catch(e){}
+      if(files.length) c.files=files;
+      saveDB(); closeDrawer(); toast('批复文件已更新'); renderDtBody();
+    },{priText:'保存修改'});
 }
 function openDocView(t,i){
   var d=docStore();
@@ -1171,7 +1445,8 @@ function openDocView(t,i){
       '<div class="k">编制人</div><div class="v">'+esc(x[7])+'</div></div>'+
       '<div class="dsec">版本历史</div>'+
       '<div class="li"><div class="t">'+esc(x[2])+' · 当前版本<div class="s">'+esc(x[5])+' · '+esc(x[6])+'</div></div>'+tag('有效','t-grn')+'</div>'+
-      '<div class="li"><div class="t">历史版本<div class="s">仅供追溯，不得用于施工与采购</div></div>'+tag('已归档','t-gry')+'</div>';
+      '<div class="li"><div class="t">历史版本<div class="s">仅供追溯，不得用于施工与采购</div></div>'+tag('已归档','t-gry')+'</div>'+
+      '<div class="dsec">附件 <span class="tip">'+(x[8]&&x[8].length?x[8].length+' 个文件':'无')+'</span></div>'+attachListHtml(x[8]);
   } else {
     body='<div class="dsec">'+(t==='budget'?'预算':'概算')+'信息</div><div class="kv">'+
       '<div class="k">名称</div><div class="v">'+esc(x[0])+'</div>'+
@@ -1181,6 +1456,7 @@ function openDocView(t,i){
       '<div class="k">日期</div><div class="v mono">'+esc(x[4])+'</div>'+
       '<div class="k">状态</div><div class="v">'+tag(x[5],x[5]==='已批准'?'t-grn':'t-yel')+'</div>'+
       '<div class="k">编制单位</div><div class="v">'+esc(x[6])+'</div></div>'+
+      '<div class="dsec">附件 <span class="tip">'+(x[7]&&x[7].length?x[7].length:'无')+'</span></div>'+attachListHtml(x[7])+
       '<div class="dsec">关联审批</div><div class="note">该文件的审定记录与调整历史可在「待我审批」中追溯。任何调整须留痕并说明原因。</div>';
   }
   openDrawer((t==='draw'?'图纸 · ':t==='budget'?'预算 · ':'概算 · ')+x[0],body,function(){closeDrawer()},{priText:'关闭'});
