@@ -92,12 +92,12 @@ var AI = (function(){
     switch(it.type){
       case 'help': return '我可以帮你查数据、办业务、出报告、找功能。比如：\n· 本月营收多少\n· 应收多少\n· 司机合规率\n· 新增一个风电项目\n· 生成周报\n· 打开合同管理';
       case 'addProject':
-        if(!requireManager('新增项目')) return '新增项目需要<b>管理者及以上权限</b>，请联系管理员开通。';
+        if(!canAddProject()) return '请先登录后再新增项目。';
         openProjectAdd();
         var nm=grabName(lastText); if(nm){ var el=document.querySelector('#dbody [name="paName"]'); if(el) el.value=nm; }
         return '已打开「新增项目」表单'+(nm?'，名称已预填「'+nm+'」':'')+'，填完点「保存项目」即可。';
       case 'addContract':
-        if(!requireManager('新增合同')) return '新增合同需要<b>管理者及以上权限</b>，请联系管理员开通。';
+        if(!canAddProject()) return '请先登录后再新增合同。';
         openContractAdd(); return '已打开「新增合同」表单，填完保存即可。';
       case 'addStaff':
         if(!requireManager('新增业务人员')) return '新增业务人员需要<b>管理者及以上权限</b>，请联系管理员开通。';

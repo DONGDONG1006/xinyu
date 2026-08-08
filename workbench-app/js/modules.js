@@ -195,7 +195,7 @@ function openInvoice(cid){
     },{priText:'保存'});
 }
 function openContractAdd(){
-  if(!requireManager('新增合同')) return;
+  if(!canAddProject()){ toast('请先登录后再新增合同'); return; }
   openDrawer('新增合同',
     '<div class="f2">'+fld('合同编号','nfCode','',makeContractNo('新能源项目', todayStr()))+fldSel('方向','nfDir',['收','付'])+'</div>'+
     '<div class="note">合同编号按「业务线 + 签订年月」自动生成（格式 <b>XY-&lt;业务线&gt;-&lt;YYYYMM&gt;-&lt;当年序号&gt;</b>），管理者可手动修改；切换业务线或签订日期将自动重算。'+
@@ -411,6 +411,7 @@ function nodeForm(n){
     fldArea('备注','ndNote','批复文号 / 关键条件 / 前置依赖',n.note);
 }
 function openNodeAdd(){
+  if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
   openDrawer('新增关键节点',nodeForm(),function(){
     var nm=_v('ndName'); if(!nm){toast('请填写节点名称');return}
     nodeList().push({id:uid('n'),name:nm,plan:_v('ndPlan'),actual:_v('ndActual'),status:_chip('1'),
@@ -435,8 +436,9 @@ function openNodeView(i){
     '<div class="dsec">快捷动作</div><div class="chips">'+
     '<span class="chip" onclick="openTaskAdd({title:\'推动节点：'+esc(n.name)+'\',owner:\''+esc(n.owner)+'\',due:\''+n.plan+'\'})">派单督办</span>'+
     '<span class="chip" onclick="markNodeDone('+i+')">标记已完成</span>'+
-    '<span class="chip" onclick="delNode('+i+')">删除节点</span></div>',
+    (isAdmin()?'<span class="chip" onclick="delNode('+i+')">删除节点</span>':'')+'</div>',
     function(){
+      if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
       n.name=_v('ndName')||n.name; n.plan=_v('ndPlan'); n.actual=_v('ndActual');
       n.status=_chip('1'); n.owner=_v('ndOwner'); n.dep=_v('ndDep');
       n.impact=_v('ndImpact'); n.note=_v('ndNote');
@@ -448,6 +450,7 @@ function markNodeDone(i){
   saveDB(); closeDrawer(); toast('节点已标记完成'); renderDetail();
 }
 function delNode(i){
+  if(!canDeleteBiz()){ toast('删除节点仅管理员可操作'); return; }
   if(!confirm('确定删除该节点？')) return;
   nodeList().splice(i,1); saveDB(); closeDrawer(); toast('节点已删除'); renderDetail();
 }
@@ -513,6 +516,7 @@ function personForm(p){
     fldArea('关系备注','pfNote','分管什么、在意什么、由谁引荐、承诺过什么',p.note);
 }
 function openPersonAdd(){
+  if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
   openDrawer('新增关键人 / 联系人',personForm(),function(){
     var n=_v('pfName'); if(!n){toast('请填写姓名');return}
     pplList().push({id:uid('p'),name:n,title:_v('pfTitle'),org:_v('pfOrg'),level:_chip('1'),
@@ -538,8 +542,9 @@ function openPersonView(i){
     '<div class="dsec">快捷动作</div><div class="chips">'+
     '<span class="chip" onclick="logContact('+i+')">记一次接触（今天）</span>'+
     '<span class="chip" onclick="openTaskAdd({title:\'拜访 '+esc(p.name)+'（'+esc(p.org)+'）\',owner:\''+projById(curProject).owner+'\'})">安排拜访</span>'+
-    '<span class="chip" onclick="delPerson('+i+')">删除</span></div>',
+    (isAdmin()?'<span class="chip" onclick="delPerson('+i+')">删除</span>':'')+'</div>',
     function(){
+      if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
       p.name=_v('pfName')||p.name; p.title=_v('pfTitle'); p.org=_v('pfOrg'); p.level=_chip('1');
       p.phone=_v('pfPhone'); p.wechat=_v('pfWx'); p.heat=Number(_chip('2'))||3;
       p.last=_v('pfLast'); p.next=_v('pfNext'); p.pref=_v('pfPref'); p.note=_v('pfNote');
@@ -551,6 +556,7 @@ function logContact(i){
   saveDB(); closeDrawer(); toast('已记录接触，关系温度 +1'); renderDetail();
 }
 function delPerson(i){
+  if(!canDeleteBiz()){ toast('删除联系人仅管理员可操作'); return; }
   if(!confirm('确定删除该联系人档案？')) return;
   pplList().splice(i,1); saveDB(); closeDrawer(); toast('已删除'); renderDetail();
 }
@@ -594,6 +600,7 @@ function orgForm(o){
     fldArea('备注','ofNote','历史合作情况、账期、风险点',o.note);
 }
 function openOrgAdd(){
+  if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
   openDrawer('新增相关公司',orgForm(),function(){
     var n=_v('ofName'); if(!n){toast('请填写公司名称');return}
     orgList().push({id:uid('o'),name:n,type:_v('ofType'),role:_v('ofRole'),contact:_v('ofContact')||'—',
@@ -621,14 +628,16 @@ function openOrgView(i){
     '<div class="dsec">编辑档案</div>'+orgForm(o)+
     '<div class="dsec">快捷动作</div><div class="chips">'+
     '<span class="chip" onclick="openContractAdd()">＋ 与该公司签合同</span>'+
-    '<span class="chip" onclick="delOrg('+i+')">删除</span></div>',
+    (isAdmin()?'<span class="chip" onclick="delOrg('+i+')">删除</span>':'')+'</div>',
     function(){
+      if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
       o.name=_v('ofName')||o.name; o.type=_v('ofType'); o.role=_v('ofRole'); o.contact=_v('ofContact');
       o.phone=_v('ofPhone'); o.amount=_num('ofAmt'); o.credit=_v('ofCredit'); o.status=_chip('1'); o.note=_v('ofNote');
       saveDB(); closeDrawer(); toast('公司档案已更新'); renderDetail();
     },{priText:'保存修改'});
 }
 function delOrg(i){
+  if(!canDeleteBiz()){ toast('删除公司仅管理员可操作'); return; }
   if(!confirm('确定删除该公司档案？')) return;
   orgList().splice(i,1); saveDB(); closeDrawer(); toast('已删除'); renderDetail();
 }
@@ -1121,7 +1130,7 @@ function renderMap(){
       '<div class="t">'+esc(p.name)+'<div class="s">'+p.type+' · '+p.stage+' · '+esc(p.addr)+'</div></div>'+
       '<div style="width:120px">'+bar(p.progress)+'</div>'+
       '<div class="mono" style="width:52px;text-align:right;color:var(--txt)">'+p.progress+'%</div>'+
-      '<span class="chip" onclick="event.stopPropagation();if(confirm(\'删除项目「'+esc(p.name)+'」？\'))deleteProject(\''+p.id+'\')">删除</span>'+
+      (isAdmin()?'<span class="chip" onclick="event.stopPropagation();if(confirm(\'删除项目「'+esc(p.name)+'」？\'))deleteProject(\''+p.id+'\')">删除</span>':'')+
       '<span class="chip" onclick="event.stopPropagation();openTwin(\''+p.id+'\')">孪生 ▸</span></div>';
   }).join('');
 }

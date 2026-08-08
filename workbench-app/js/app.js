@@ -56,6 +56,14 @@ function isManager(){ return !!(CUR_USER && (CUR_USER.role==='admin'||CUR_USER.r
 function roleName(r){ return r==='admin'?'管理员':r==='manager'?'管理者':'成员'; }
 function requireAdmin(act){ if(!isAdmin()){ toast('需要管理员权限：'+(act||'')); return false; } return true; }
 function requireManager(act){ if(!isManager()){ toast('需要管理者及以上权限：'+(act||'')); return false; } return true; }
+/* 业务人员（成员）权限模型：
+   - 成员可新增项目，并可在自己创建的项目里增改节点/关键人/相关公司/合同/跑动/费用；
+   - 管理者可增改一切（含他人项目）；
+   - 删除（项目 + 业务子项：节点/关键人/相关公司）仅管理员（adminOnly）。 */
+function isMember(){ return !!(CUR_USER && CUR_USER.role==='member'); }
+function canAddProject(){ return !!CUR_USER; }
+function canEditProj(p){ if(isManager()) return true; return !!(p && p.createdBy && CUR_USER && p.createdBy===CUR_USER.id); }
+function canDeleteBiz(){ return isAdmin(); }
 function pushAudit(act){
   try{ DB.auditLog=DB.auditLog||[];
     DB.auditLog.unshift({t:new Date().toISOString(),username:CUR_USER?CUR_USER.username:'?',name:CUR_USER?CUR_USER.name:'?',role:CUR_USER?CUR_USER.role:'?',act:act,dev:(navigator.userAgent||'').slice(0,46)});
@@ -231,7 +239,7 @@ function renderAdmin(){
   }).join('');
   document.getElementById('admUsers').innerHTML='<table class="utbl"><thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>状态</th><th>创建</th><th>操作</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
-  var perms=[['经营数据查看','view','view','view'],['项目 / 合同 增改','—','edit','edit'],['项目 / 合同 删除','—','del','del'],
+  var perms=[['经营数据查看','view','view','view'],['项目 / 合同 增改','edit','edit','edit'],['项目 / 合同 删除','—','—','del'],
     ['跑动 / 费用 填报','add','add','add'],['用户与账号管理','—','—','user'],['系统设置 / 目标','—','—','sys'],['数据导出导入 / 清库','—','—','data']];
   var mr='<table class="rmatrix"><thead><tr><th>权限项</th><th>成员</th><th>管理者</th><th>管理员</th></tr></thead><tbody>';
   perms.forEach(function(p){ mr+='<tr><td>'+p[0]+'</td>'+[p[1],p[2],p[3]].map(function(v){
@@ -408,7 +416,7 @@ function openTaskAdd(pre){
 
 /* ---------------- 项目新增 / 删除 ---------------- */
 function openProjectAdd(){
-  if(!requireManager('新增项目')) return;
+  if(!canAddProject()){ toast('请先登录后再新增项目'); return; }
   var html=
     fld('项目名称','paName','如：临港 100MW 光伏治沙')+
     fldSel('业务线','paLine',['新能源','大交通','网约车','车辆销售'])+
@@ -422,13 +430,13 @@ function openProjectAdd(){
     var id='p'+Date.now().toString(36);
     DB.projects.push({id:id,name:nm,line:line,type:typeMap[line]||line,city:_v('paCity')||'',owner:_v('paOwner')||'',
       stage:'推进中',addr:_v('paCity')||'',invTotal:_num('paInv'),invDone:0,progress:Math.max(0,Math.min(100,_num('paProg'))),
-      status:'推进中',note:_v('paNote'),geo:{lng:103.8,lat:36.0},updated:todayStr()});
+      status:'推进中',note:_v('paNote'),geo:{lng:103.8,lat:36.0},updated:todayStr(),createdBy:(CUR_USER?CUR_USER.id:null)});
     if(!DB.nodes)DB.nodes={}; if(!DB.people)DB.people={}; if(!DB.orgs)DB.orgs={}; if(!DB.docs)DB.docs={};
     saveDB(); closeDrawer(); curProject=id; renderProjNav(); go('detail'); toast('项目已新增：'+nm);
   },{priText:'保存项目'});
 }
 function deleteProject(id){
-  if(!requireManager('删除项目')) return;
+  if(!canDeleteBiz()){ toast('删除项目仅管理员可操作'); return; }
   var p=projById(id); if(!p) return;
   if(!confirm('确认删除项目「'+p.name+'」？\n将一并删除其关键节点、关键人、相关公司、图纸，以及关联合同 / 跑动 / 业务费用，且不可恢复。')) return;
   DB.projects=DB.projects.filter(function(x){return x.id!==id});

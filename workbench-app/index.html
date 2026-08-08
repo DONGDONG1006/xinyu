@@ -333,7 +333,7 @@
       <div class="ptitle"><h1 id="dtName">项目详情</h1>
         <select id="dtSel" class="inline-sel" onchange="switchProject(this.value)"></select>
         <button class="btn" onclick="openProjectAdd()">＋ 新增</button>
-        <button class="btn dgr" onclick="if(curProject)deleteProject(curProject)">删除</button>
+        <button class="btn dgr adminOnly" onclick="if(curProject)deleteProject(curProject)">删除</button>
         <div class="spacer"></div>
         <button class="btn" onclick="genWeekly()">生成周报</button>
         <button class="btn pri" onclick="openTaskAdd()">派单督办</button>
