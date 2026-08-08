@@ -1,0 +1,22 @@
+# 甘肃新煜科技工作台 · 协同后端（云端实时同步 + PWA 托管）
+# 用法（在仓库根目录执行）：
+#   docker compose -f server/deploy/docker-compose.yml up -d --build
+# 之后访问 http://<服务器公网IP>:8090 即为「云端版」工作台，
+# 所有设备数据统一存于服务器 /app/data/db.json，修改实时同步。
+services:
+  xinyu-workbench:
+    build:
+      context: .
+      dockerfile: server/deploy/Dockerfile
+    container_name: xinyu-workbench
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - DB_PATH=/app/data/db.json
+    volumes:
+      - xinyu-data:/app/data
+
+volumes:
+  xinyu-data:

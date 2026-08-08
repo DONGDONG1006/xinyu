@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>集团经营工作台 · 原型</title>
+<style>
+:root{
+  --ink:#191d24; --ink2:#414954; --muted:#79828f; --line:#e6e9ee; --line2:#f0f2f5;
+  --bg:#f4f6f9; --card:#ffffff;
+  --brand:#1f5fbf; --brand-soft:#eaf1fb;
+  --red:#d1453b; --red-soft:#fdecea;
+  --amber:#c97d0a; --amber-soft:#fdf3e2;
+  --green:#12866a; --green-soft:#e6f5f0;
+  --purple:#5b4fc4; --purple-soft:#eeecfb;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  background:var(--bg); color:var(--ink); font-size:13px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer}
+.app{display:flex;min-height:100vh}
+
+/* ===== 侧边栏 ===== */
+.side{width:196px;flex:0 0 196px;background:#131a24;color:#c3ccd8;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.brand .n{font-size:14px;font-weight:500;color:#fff;letter-spacing:.5px}
+.brand .s{font-size:11px;color:#6d7c8f;margin-top:2px}
+.navgrp{padding:12px 0 4px}
+.navgrp .lbl{font-size:11px;color:#5c6a7d;padding:0 16px 6px;letter-spacing:.5px}
+.nav{display:flex;align-items:center;gap:9px;padding:8px 16px;font-size:13px;color:#c3ccd8;cursor:pointer;border-left:2px solid transparent}
+.nav:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav.on{background:rgba(31,95,191,.22);border-left-color:#4d8ff0;color:#fff}
+.dot{width:6px;height:6px;border-radius:50%;flex:0 0 6px}
+.nav .badge{margin-left:auto;background:#d1453b;color:#fff;font-size:10px;padding:0 5px;border-radius:8px;line-height:15px}
+.side .foot{margin-top:auto;padding:12px 16px;font-size:11px;color:#5c6a7d;border-top:1px solid rgba(255,255,255,.07)}
+
+/* ===== 主区 ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{background:var(--card);border-bottom:1px solid var(--line);padding:0 22px;height:54px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:20}
+.top h1{font-size:15px;font-weight:500}
+.top .crumb{font-size:12px;color:var(--muted)}
+.spacer{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:5px 11px;font-size:12px;color:var(--ink2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--brand-soft);color:var(--brand)}
+.who{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2)}
+.ava{width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+.content{padding:18px 22px 40px;flex:1}
+.page{display:none}
+.page.on{display:block}
+
+/* ===== 通用卡片 ===== */
+.grid{display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.card h3{font-size:13px;font-weight:500;display:flex;align-items:center;gap:7px;margin-bottom:2px}
+.card h3 .more{margin-left:auto;font-size:11px;color:var(--brand);font-weight:400;cursor:pointer}
+.card .sub{font-size:11px;color:var(--muted);margin-bottom:10px}
+.sect{font-size:12px;color:var(--muted);margin:20px 0 9px;display:flex;align-items:center;gap:8px}
+.sect::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* KPI */
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:.15s}
+.kpi:hover{border-color:#c3d3ea;transform:translateY(-1px)}
+.kpi .l{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.kpi .v{font-size:22px;font-weight:500;letter-spacing:-.4px;margin:3px 0 1px}
+.kpi .v small{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px}
+.kpi .d{font-size:11px;color:var(--muted)}
+.up{color:var(--green)} .down{color:var(--red)} .warn{color:var(--amber)}
+
+/* 标签 */
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 7px;border-radius:5px;line-height:17px;white-space:nowrap}
+.t-red{background:var(--red-soft);color:var(--red)}
+.t-amb{background:var(--amber-soft);color:var(--amber)}
+.t-grn{background:var(--green-soft);color:var(--green)}
+.t-blu{background:var(--brand-soft);color:var(--brand)}
+.t-pur{background:var(--purple-soft);color:var(--purple)}
+.t-gry{background:#f1f3f6;color:var(--muted)}
+
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-weight:400;color:var(--muted);font-size:11px;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#fafbfc}
+td .nm{color:var(--ink);font-weight:500}
+td .sm{font-size:11px;color:var(--muted)}
+.act{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 9px;font-size:11px;color:var(--brand)}
+.act:hover{background:var(--brand-soft)}
+
+/* 进度条 */
+.bar{height:5px;background:#eef0f4;border-radius:3px;overflow:hidden;min-width:52px}
+.bar i{display:block;height:100%;border-radius:3px}
+.rowline{display:flex;align-items:center;gap:8px}
+
+/* 预警项 */
+.alert{display:flex;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.alert:hover{background:#fafbfc;border-color:var(--line)}
+.alert .pip{width:3px;border-radius:2px;flex:0 0 3px}
+.alert .bd{flex:1;min-width:0}
+.alert .t1{font-size:12.5px;display:flex;gap:7px;align-items:center}
+.alert .t2{font-size:11px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alert .rt{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+
+/* 健康度卡 */
+.hcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;cursor:pointer;transition:.15s}
+.hcard:hover{border-color:#c3d3ea}
+.hcard .hd{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.hcard .hd b{font-size:13px;font-weight:500}
+.hcard .score{margin-left:auto;font-size:17px;font-weight:500}
+.hcard .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}
+.hcard .mini div{background:#fafbfc;border-radius:6px;padding:6px 7px}
+.hcard .mini .k{font-size:10.5px;color:var(--muted)}
+.hcard .mini .n{font-size:14px;font-weight:500}
+
+/* 手续矩阵 */
+.matrix{overflow-x:auto}
+.matrix table{min-width:640px}
+.matrix.heat table{min-width:0}
+.matrix.heat th{text-align:center;font-size:10px;padding:4px 2px}
+.matrix.heat td{padding:3px 2px}
+.cell{width:26px;height:22px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer}
+.c-ok{background:#dff0ea;color:#0d6e57}
+.c-do{background:#e3edfb;color:#1f5fbf}
+.c-wa{background:#fbeed6;color:#a5670a}
+.c-no{background:#fadedb;color:#b8352c}
+.c-na{background:#f2f4f7;color:#b7bec8}
+
+/* 漏斗 */
+.funnel{display:flex;flex-direction:column;gap:5px}
+.fn{display:flex;align-items:center;gap:10px}
+.fn .fl{width:78px;font-size:11.5px;color:var(--ink2);flex:0 0 78px}
+.fn .fb{flex:1;height:26px;background:#f3f5f8;border-radius:5px;position:relative;overflow:hidden}
+.fn .fb i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--brand);opacity:.85}
+.fn .fb span{position:absolute;left:9px;top:0;line-height:26px;color:#fff;font-size:11.5px}
+.fn .fr{width:76px;text-align:right;font-size:11px;color:var(--muted);flex:0 0 76px}
+
+/* 甘特 */
+.gantt{font-size:11.5px}
+.gantt .row{display:flex;align-items:center;height:28px;border-bottom:1px solid var(--line2)}
+.gantt .nmc{width:150px;flex:0 0 150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
+.gantt .track{flex:1;position:relative;height:14px;background:#f5f7fa;border-radius:3px}
+.gantt .seg2{position:absolute;top:0;bottom:0;border-radius:3px}
+.gantt .hdr{display:flex;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:2px}
+.gantt .hdr .track{background:none;display:flex;height:auto}
+.gantt .hdr .track span{flex:1;text-align:center;font-size:10.5px}
+
+/* 抽屉 */
+.mask{position:fixed;inset:0;background:rgba(16,20,26,.34);opacity:0;pointer-events:none;transition:.18s;z-index:50}
+.mask.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:428px;max-width:92vw;background:#fff;transform:translateX(100%);transition:.22s cubic-bezier(.4,0,.2,1);z-index:60;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.1)}
+.drawer.on{transform:none}
+.drawer .dh{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.drawer .dh b{font-size:14px;font-weight:500}
+.drawer .dh .x{margin-left:auto;border:0;background:none;font-size:18px;color:var(--muted);line-height:1}
+.drawer .db{padding:16px 18px;overflow-y:auto;flex:1}
+.drawer .df{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 15px;font-size:12.5px;color:var(--ink2)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;color:var(--ink);background:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);border-radius:14px;padding:3px 11px;font-size:11.5px;color:var(--ink2);background:#fff}
+.chip.on{background:var(--brand-soft);border-color:#b9d0ee;color:var(--brand)}
+.tl{position:relative;padding-left:16px}
+.tl::before{content:"";position:absolute;left:4px;top:5px;bottom:5px;width:1px;background:var(--line)}
+.tl .it{position:relative;padding-bottom:12px}
+.tl .it::before{content:"";position:absolute;left:-15px;top:6px;width:7px;height:7px;border-radius:50%;background:#c8cfd9}
+.tl .it.hot::before{background:var(--red)}
+.tl .it .a{font-size:12.5px}
+.tl .it .b{font-size:11px;color:var(--muted)}
+
+/* 手机 */
+.phone{width:236px;border:8px solid #1c232e;border-radius:28px;background:#f4f6f9;overflow:hidden;flex:0 0 236px}
+.phone .pt{background:#1c232e;color:#fff;font-size:10.5px;padding:4px 12px;display:flex;justify-content:space-between}
+.phone .pb{padding:10px;height:388px;overflow-y:auto}
+.pcard{background:#fff;border-radius:9px;padding:10px;margin-bottom:8px;border:1px solid var(--line)}
+
+.note{background:#fbfcfd;border:1px dashed #d7dde5;border-radius:8px;padding:10px 12px;font-size:11.5px;color:var(--ink2)}
+.note b{font-weight:500;color:var(--ink)}
+.kv{display:flex;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line2)}
+.kv .k{color:var(--muted);width:76px;flex:0 0 76px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:9px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ================= 侧边栏 ================= -->
+<aside class="side">
+  <div class="brand">
+    <div class="n">集团经营工作台</div>
+    <div class="s">Group Operating Cockpit</div>
+  </div>
+
+  <div class="navgrp">
+    <div class="lbl">决策</div>
+    <div class="nav on" data-p="dash"><span class="dot" style="background:#5b4fc4"></span>经营驾驶舱<span class="badge">7</span></div>
+  </div>
+
+  <div class="navgrp">
+    <div class="lbl">业务作战</div>
+    <div class="nav" data-p="ne"><span class="dot" style="background:#12866a"></span>新能源项目</div>
+    <div class="nav" data-p="traffic"><span class="dot" style="background:#1f5fbf"></span>大交通机电</div>
+    <div class="nav" data-p="ride"><span class="dot" style="background:#c97d0a"></span>网约车平台</div>
+    <div class="nav" data-p="auto"><span class="dot" style="background:#d1453b"></span>新能源车销售</div>
+  </div>
+
+  <div class="navgrp">
+    <div class="lbl">共性能力</div>
+    <div class="nav" data-p="field"><span class="dot" style="background:#0f9b8e"></span>跑动作战台<span class="badge">12</span></div>
+    <div class="nav" data-p="fin"><span class="dot" style="background:#8a6d1f"></span>资金与风控</div>
+    <div class="nav" data-p="detail"><span class="dot" style="background:#79828f"></span>项目详情示例</div>
+  </div>
+
+  <div class="foot">数据截至 08-08 18:00<br>口径：管理报表</div>
+</aside>
+
+<div class="main">
+<!-- ================= 顶栏 ================= -->
+<header class="top">
+  <div>
+    <h1 id="ttl">经营驾驶舱</h1>
+    <div class="crumb" id="crumb">全集团 · 2026年8月</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="seg">
+    <button class="on">董事长视角</button>
+    <button>分管领导</button>
+    <button>项目经理</button>
+  </div>
+  <div class="seg">
+    <button>本周</button>
+    <button class="on">本月</button>
+    <button>本年</button>
+  </div>
+  <div class="who"><span class="ava">总</span>王总</div>
+</header>
+
+<div class="content">
+
+<!-- ============================================================ -->
+<!-- 页面 1：经营驾驶舱                                            -->
+<!-- ============================================================ -->
+<section class="page on" id="p-dash">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi" onclick="drill('在推项目','42 个项目按阶段分布，其中 9 个处于手续卡点')">
+      <div class="l">在推项目</div><div class="v">42<small>个</small></div>
+      <div class="d">新能源 18 · 交通 14 · 场站 10</div>
+    </div>
+    <div class="kpi" onclick="drill('年度签约额','已签 8.62 亿，年目标 12 亿，进度 72%')">
+      <div class="l">年度签约额</div><div class="v">8.62<small>亿</small></div>
+      <div class="d"><span class="up">▲ 目标进度 72%</span></div>
+    </div>
+    <div class="kpi" onclick="drill('经营性现金流','本月净流入 3,240 万，主要来自机电项目进度款')">
+      <div class="l">经营性现金流</div><div class="v up">+3,240<small>万</small></div>
+      <div class="d">上月 +1,860 万</div>
+    </div>
+    <div class="kpi" onclick="drill('应收逾期','逾期 4,180 万，其中账龄 90 天以上 1,260 万')">
+      <div class="l">应收逾期</div><div class="v down">4,180<small>万</small></div>
+      <div class="d"><span class="down">90天以上 1,260 万</span></div>
+    </div>
+    <div class="kpi" onclick="go('field')">
+      <div class="l">今日跑动</div><div class="v">23<small>人</small></div>
+      <div class="d">47 项事项 · 已签到 19</div>
+    </div>
+    <div class="kpi" onclick="drill('待我审批','9 项待批，2 项已超 24 小时')">
+      <div class="l">待我审批</div><div class="v">9<small>项</small></div>
+      <div class="d"><span class="warn">2 项超 24 小时</span></div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.55fr 1fr;margin-top:12px">
+
+    <div class="card">
+      <h3><span class="tag t-red">红灯 3</span><span class="tag t-amb">黄灯 4</span> 今日必须处理
+        <span class="more" onclick="go('field')">全部预警 →</span></h3>
+      <div class="sub">按"影响金额 × 逾期天数"排序，点击任意一条可直接下钻并派单</div>
+      <div id="alerts"></div>
+    </div>
+
+    <div class="card">
+      <h3>今日日程与决策</h3>
+      <div class="sub">08月08日 星期六</div>
+      <div class="tl">
+        <div class="it hot"><div class="a">09:30 · 与市发改委沟通渔光互补指标</div><div class="b">李副总 · 关联：临港 100MW 项目</div></div>
+        <div class="it"><div class="a">11:00 · G15 沈海高速机电标段开标</div><div class="b">机电事业部 · 投标金额 6,800 万</div></div>
+        <div class="it"><div class="a">14:00 · 网约车平台 7 月经营复盘</div><div class="b">待决策：司机端补贴策略调整</div></div>
+        <div class="it"><div class="a">16:30 · 与电网公司谈 3 个场站接入</div><div class="b">张经理 · 已卡 18 天</div></div>
+        <div class="it"><div class="a">19:00 · 车辆销售冲刺周会</div><div class="b">8 月目标缺口 47 台</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect">四条业务线健康度</div>
+  <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+
+    <div class="hcard" onclick="go('ne')">
+      <div class="hd"><span class="dot" style="background:#12866a"></span><b>新能源项目</b><span class="score up">82</span></div>
+      <div class="chart" data-c="spark" data-v="52,58,55,63,68,72,70,78,82" data-col="#12866a"></div>
+      <div class="mini">
+        <div><div class="k">在建容量</div><div class="n">640<span style="font-size:10px">MW</span></div></div>
+        <div><div class="k">手续卡点</div><div class="n" style="color:#d1453b">6</div></div>
+        <div><div class="k">年内并网</div><div class="n">3<span style="font-size:10px">个</span></div></div>
+      </div>
+    </div>
+
+    <div class="hcard" onclick="go('traffic')">
+      <div class="hd"><span class="dot" style="background:#1f5fbf"></span><b>大交通机电</b><span class="score warn">71</span></div>
+      <div class="chart" data-c="spark" data-v="70,74,68,72,66,64,69,72,71" data-col="#1f5fbf"></div>
+      <div class="mini">
+        <div><div class="k">在建标段</div><div class="n">14</div></div>
+        <div><div class="k">中标率</div><div class="n">31<span style="font-size:10px">%</span></div></div>
+        <div><div class="k">应收逾期</div><div class="n" style="color:#d1453b">2.6<span style="font-size:10px">千万</span></div></div>
+      </div>
+    </div>
+
+    <div class="hcard" onclick="go('ride')">
+      <div class="hd"><span class="dot" style="background:#c97d0a"></span><b>网约车平台</b><span class="score down">63</span></div>
+      <div class="chart" data-c="spark" data-v="78,76,74,71,69,66,64,62,63" data-col="#c97d0a"></div>
+      <div class="mini">
+        <div><div class="k">日均单量</div><div class="n">3.2<span style="font-size:10px">万</span></div></div>
+        <div><div class="k">双证合规</div><div class="n" style="color:#d1453b">87<span style="font-size:10px">%</span></div></div>
+        <div><div class="k">活跃司机</div><div class="n">4,120</div></div>
+      </div>
+    </div>
+
+    <div class="hcard" onclick="go('auto')">
+      <div class="hd"><span class="dot" style="background:#d1453b"></span><b>新能源车销售</b><span class="score warn">75</span></div>
+      <div class="chart" data-c="spark" data-v="60,64,69,66,72,74,71,76,75" data-col="#d1453b"></div>
+      <div class="mini">
+        <div><div class="k">月销台数</div><div class="n">183</div></div>
+        <div><div class="k">库存车龄</div><div class="n warn">61<span style="font-size:10px">天</span></div></div>
+        <div><div class="k">交付缺口</div><div class="n" style="color:#d1453b">47</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.3fr 1fr;margin-top:12px">
+    <div class="card">
+      <h3>近 12 个月收入与经营性现金流</h3>
+      <div class="sub">柱：收入（万元）　线：经营性现金流净额</div>
+      <div class="chart" data-c="combo"></div>
+    </div>
+    <div class="card">
+      <h3>收入结构与毛利贡献</h3>
+      <div class="sub">本年累计 · 点击查看业务线明细</div>
+      <div class="chart" data-c="stackbar"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 2：新能源项目                                            -->
+<!-- ============================================================ -->
+<section class="page" id="p-ne">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi"><div class="l">储备资源</div><div class="v">1,860<small>MW</small></div><div class="d">风电 720 · 光伏 1,140</div></div>
+    <div class="kpi"><div class="l">已获指标</div><div class="v">890<small>MW</small></div><div class="d">年度目标 1,200MW</div></div>
+    <div class="kpi"><div class="l">在建容量</div><div class="v">640<small>MW</small></div><div class="d">投资额 26.8 亿</div></div>
+    <div class="kpi"><div class="l">手续卡点</div><div class="v down">6<small>项</small></div><div class="d"><span class="down">最长已卡 43 天</span></div></div>
+    <div class="kpi"><div class="l">充电场站</div><div class="v">37<small>座</small></div><div class="d">枪数 612 · 在建 6</div></div>
+    <div class="kpi"><div class="l">场站毛利率</div><div class="v">21.4<small>%</small></div><div class="d"><span class="up">▲ 环比 +1.8pt</span></div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1.25fr;margin-top:12px">
+    <div class="card">
+      <h3>项目开发管道</h3>
+      <div class="sub">从资源摸排到稳定运营的容量转化（MW）</div>
+      <div class="funnel">
+        <div class="fn"><div class="fl">资源摸排</div><div class="fb"><i style="width:100%"></i><span>1,860 MW</span></div><div class="fr">—</div></div>
+        <div class="fn"><div class="fl">政府对接</div><div class="fb"><i style="width:78%"></i><span>1,450 MW</span></div><div class="fr">78%</div></div>
+        <div class="fn"><div class="fl">指标获取</div><div class="fb"><i style="width:48%"></i><span>890 MW</span></div><div class="fr">61%</div></div>
+        <div class="fn"><div class="fl">前期手续</div><div class="fb"><i style="width:41%"></i><span>760 MW</span></div><div class="fr">85%</div></div>
+        <div class="fn"><div class="fl">开工建设</div><div class="fb"><i style="width:34%"></i><span>640 MW</span></div><div class="fr">84%</div></div>
+        <div class="fn"><div class="fl">并网投运</div><div class="fb"><i style="width:17%"></i><span>320 MW</span></div><div class="fr">50%</div></div>
+      </div>
+      <div class="note" style="margin-top:12px"><b>管道体检：</b>指标获取环节转化率 61%，为全链条最低。竞配失利集中在"配储比例"与"消纳承诺"两项，建议专题复盘。</div>
+    </div>
+
+    <div class="card">
+      <h3>前期手续办理矩阵 <span class="more" onclick="drill('手续矩阵','按项目 × 手续类型展示办理状态，红色为超期未办结')">导出台账 →</span></h3>
+      <div class="sub">这是"跑动"的主战场：每一格都对应一个责任人、一家对接单位、一个期限</div>
+      <div class="matrix">
+        <table>
+          <thead><tr><th style="width:170px">项目</th><th>备案<br>核准</th><th>用地<br>预审</th><th>环评</th><th>林草<br>水保</th><th>接入<br>系统</th><th>并网<br>协议</th><th>施工<br>许可</th><th style="width:96px">整体</th></tr></thead>
+          <tbody id="matbody"></tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <span><i style="background:#dff0ea"></i>已办结</span>
+        <span><i style="background:#e3edfb"></i>办理中</span>
+        <span><i style="background:#fbeed6"></i>临近期限</span>
+        <span><i style="background:#fadedb"></i>超期卡点</span>
+        <span><i style="background:#f2f4f7"></i>未启动</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect">项目台账</div>
+  <div class="card">
+    <table>
+      <thead><tr><th>项目名称</th><th>类型</th><th>容量</th><th>阶段</th><th style="width:130px">进度</th><th>投资执行</th><th>责任人</th><th>风险</th><th style="width:64px"></th></tr></thead>
+      <tbody id="nebody"></tbody>
+    </table>
+  </div>
+
+  <div class="sect">充电场站运营</div>
+  <div class="grid" style="grid-template-columns:1.1fr 1fr 1fr">
+    <div class="card">
+      <h3>近 30 日充电量趋势</h3><div class="sub">单位：万度</div>
+      <div class="chart" data-c="area"></div>
+    </div>
+    <div class="card">
+      <h3>单枪日均利用率分布</h3><div class="sub">按场站分组 · 低于 8% 需评估止损</div>
+      <div class="chart" data-c="bars" data-v="4,7,9,12,15,18,14,9,5" data-lab="4以下,4-6,6-8,8-10,10-12,12-15,15-18,18-22,22以上"></div>
+    </div>
+    <div class="card">
+      <h3>场站盈利红黑榜</h3><div class="sub">按月度毛利排序</div>
+      <table>
+        <tbody>
+          <tr><td>高铁南站 P1</td><td><span class="tag t-grn">+18.6万</span></td><td class="sm">利用率 24%</td></tr>
+          <tr><td>物流园重卡站</td><td><span class="tag t-grn">+14.2万</span></td><td class="sm">利用率 21%</td></tr>
+          <tr><td>万达广场站</td><td><span class="tag t-grn">+6.4万</span></td><td class="sm">利用率 13%</td></tr>
+          <tr><td>开发区 3 号站</td><td><span class="tag t-amb">-1.1万</span></td><td class="sm">利用率 7%</td></tr>
+          <tr><td>老城纺织厂站</td><td><span class="tag t-red">-3.8万</span></td><td class="sm">利用率 4%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 3：大交通机电                                            -->
+<!-- ============================================================ -->
+<section class="page" id="p-traffic">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi"><div class="l">跟踪商机</div><div class="v">28<small>个</small></div><div class="d">合计 21.4 亿</div></div>
+    <div class="kpi"><div class="l">本年中标</div><div class="v">5.36<small>亿</small></div><div class="d">中标率 31%</div></div>
+    <div class="kpi"><div class="l">在建标段</div><div class="v">14<small>个</small></div><div class="d"><span class="warn">3 个进度滞后</span></div></div>
+    <div class="kpi"><div class="l">设备在途</div><div class="v">3,820<small>万</small></div><div class="d">待发货 1,240 万</div></div>
+    <div class="kpi"><div class="l">库存周转</div><div class="v warn">86<small>天</small></div><div class="d"><span class="down">▲ 同比 +19 天</span></div></div>
+    <div class="kpi"><div class="l">应收逾期</div><div class="v down">2,610<small>万</small></div><div class="d">质保金 940 万未回</div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1.4fr;margin-top:12px">
+    <div class="card">
+      <h3>商机到中标漏斗</h3><div class="sub">本年累计 · 金额口径（亿元）</div>
+      <div class="funnel">
+        <div class="fn"><div class="fl">项目信息</div><div class="fb"><i style="width:100%"></i><span>21.4 亿 / 28 个</span></div><div class="fr">—</div></div>
+        <div class="fn"><div class="fl">立项跟踪</div><div class="fb"><i style="width:72%"></i><span>15.4 亿 / 21 个</span></div><div class="fr">72%</div></div>
+        <div class="fn"><div class="fl">投标报名</div><div class="fb"><i style="width:56%"></i><span>12.0 亿 / 16 个</span></div><div class="fr">78%</div></div>
+        <div class="fn"><div class="fl">正式投标</div><div class="fb"><i style="width:46%"></i><span>9.8 亿 / 13 个</span></div><div class="fr">82%</div></div>
+        <div class="fn"><div class="fl">中标签约</div><div class="fb"><i style="width:25%"></i><span>5.36 亿 / 6 个</span></div><div class="fr">46%</div></div>
+      </div>
+      <div class="note" style="margin-top:12px"><b>失标归因：</b>7 次失标中 4 次因价格（平均高于中标价 6.8%），2 次因业绩门槛，1 次废标。价格竞争力是当前主要短板。</div>
+    </div>
+
+    <div class="card">
+      <h3>在建标段进度甘特 <span class="more" onclick="drill('进度滞后','3 个标段滞后超 15 天，其中 G15 沈海标段影响交工验收节点')">滞后清单 →</span></h3>
+      <div class="sub">深色为已完成，浅色为计划剩余，红色标记为滞后</div>
+      <div class="gantt" id="gantt"></div>
+    </div>
+  </div>
+
+  <div class="sect">设备供应链</div>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1.2fr">
+    <div class="card">
+      <h3>供应链在途状态</h3><div class="sub">按金额（万元）</div>
+      <div class="chart" data-c="bars" data-v="1240,3820,2160,1480,940" data-lab="待发货,在途,待安装,待验收,待结算" data-col="#1f5fbf"></div>
+    </div>
+    <div class="card">
+      <h3>重点物资库存预警</h3><div class="sub">呆滞库存与缺口并存</div>
+      <table>
+        <tbody>
+          <tr><td>可变情报板</td><td><span class="tag t-red">呆滞 187 天</span></td><td class="sm">占用 420 万</td></tr>
+          <tr><td>高清卡口相机</td><td><span class="tag t-amb">呆滞 96 天</span></td><td class="sm">占用 260 万</td></tr>
+          <tr><td>ETC 门架天线</td><td><span class="tag t-red">缺口 120 套</span></td><td class="sm">影响 2 个标段</td></tr>
+          <tr><td>光纤配线架</td><td><span class="tag t-grn">正常</span></td><td class="sm">周转 32 天</td></tr>
+          <tr><td>隧道调光控制器</td><td><span class="tag t-amb">交期延后</span></td><td class="sm">供应商延 21 天</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>应收账龄与回款</h3><div class="sub">合计应收 1.42 亿，逾期率 18.4%</div>
+      <div class="chart" data-c="bars" data-v="6800,3620,1980,1260,540" data-lab="30天内,31-60,61-90,91-180,180天以上" data-col="#c97d0a"></div>
+      <div class="note" style="margin-top:10px"><b>催收动作：</b>省交投 3 个标段进度款合计 1,860 万已具备申报条件但未上报，建议本周由分管副总带队对接。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 4：网约车平台                                            -->
+<!-- ============================================================ -->
+<section class="page" id="p-ride">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi"><div class="l">日均单量</div><div class="v">3.21<small>万单</small></div><div class="d"><span class="down">▼ 环比 -4.2%</span></div></div>
+    <div class="kpi"><div class="l">日均 GMV</div><div class="v">62.4<small>万</small></div><div class="d">客单价 19.4 元</div></div>
+    <div class="kpi"><div class="l">活跃司机</div><div class="v">4,120<small>人</small></div><div class="d">注册 8,640 · 活跃率 48%</div></div>
+    <div class="kpi"><div class="l">双证合规率</div><div class="v down">87<small>%</small></div><div class="d"><span class="down">536 人证件缺失/临期</span></div></div>
+    <div class="kpi"><div class="l">平台净抽成</div><div class="v">18.6<small>%</small></div><div class="d">补贴后实际 12.3%</div></div>
+    <div class="kpi"><div class="l">投诉率</div><div class="v warn">2.4<small>‰</small></div><div class="d">安全事件 0 起</div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.25fr 1fr;margin-top:12px">
+    <div class="card">
+      <h3>近 30 日单量与完单率</h3><div class="sub">面积：日单量（万单）</div>
+      <div class="chart" data-c="area" data-col="#c97d0a"></div>
+      <div class="note" style="margin-top:10px"><b>下滑归因：</b>7/25 起竞对在本市投放新用户补贴，早晚高峰应答率从 92% 降至 84%，运力供给不足是主因而非需求下滑。</div>
+    </div>
+    <div class="card">
+      <h3>合规到期预警 <span class="tag t-red" style="margin-left:4px">强监管</span></h3>
+      <div class="sub">网约车三证：平台经营许可、车辆运输证、驾驶员证</div>
+      <div id="ridealert"></div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr 1.1fr;margin-top:12px">
+    <div class="card">
+      <h3>司机生命周期漏斗</h3><div class="sub">本月新增司机转化</div>
+      <div class="funnel">
+        <div class="fn"><div class="fl">注册报名</div><div class="fb"><i style="width:100%;background:#c97d0a"></i><span>1,240 人</span></div><div class="fr">—</div></div>
+        <div class="fn"><div class="fl">证件齐全</div><div class="fb"><i style="width:64%;background:#c97d0a"></i><span>794 人</span></div><div class="fr">64%</div></div>
+        <div class="fn"><div class="fl">车辆到位</div><div class="fb"><i style="width:47%;background:#c97d0a"></i><span>583 人</span></div><div class="fr">73%</div></div>
+        <div class="fn"><div class="fl">首单完成</div><div class="fb"><i style="width:41%;background:#c97d0a"></i><span>508 人</span></div><div class="fr">87%</div></div>
+        <div class="fn"><div class="fl">次月留存</div><div class="fb"><i style="width:24%;background:#c97d0a"></i><span>298 人</span></div><div class="fr">59%</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>单车日经济模型</h3><div class="sub">单位：元 / 车 / 日</div>
+      <div class="kv"><span class="k">流水</span><span style="flex:1">司机日均完成 21.4 单</span><b>415</b></div>
+      <div class="kv"><span class="k">平台抽成</span><span style="flex:1">名义 18.6%</span><b class="up">+77</b></div>
+      <div class="kv"><span class="k">司机补贴</span><span style="flex:1">冲单奖 + 高峰奖</span><b class="down">-26</b></div>
+      <div class="kv"><span class="k">获客与运营</span><span style="flex:1">拉新摊销 + 客服</span><b class="down">-11</b></div>
+      <div class="kv"><span class="k">技术与合规</span><span style="flex:1">牌照、数据、保险</span><b class="down">-9</b></div>
+      <div class="kv" style="border:0;padding-top:9px"><span class="k">单车贡献</span><span style="flex:1"></span><b class="up" style="font-size:16px">+31</b></div>
+      <div class="note" style="margin-top:8px">4,120 活跃车 × 31 元 ≈ 日贡献 <b>12.8 万</b>；补贴每降 5 元，日贡献增 2.1 万，但需测算掉线率弹性。</div>
+    </div>
+
+    <div class="card">
+      <h3>运力供需热力（本周）</h3><div class="sub">红色为运力缺口时段，是补贴投放的靶点</div>
+      <div class="matrix heat">
+        <table><thead><tr><th style="width:44px"></th><th>6-9</th><th>9-12</th><th>12-14</th><th>14-17</th><th>17-20</th><th>20-23</th><th>23-6</th></tr></thead>
+        <tbody id="heatbody"></tbody></table>
+      </div>
+      <div class="legend"><span><i style="background:#fadedb"></i>缺口大</span><span><i style="background:#fbeed6"></i>偏紧</span><span><i style="background:#dff0ea"></i>平衡</span><span><i style="background:#e3edfb"></i>运力过剩</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 5：新能源车销售                                          -->
+<!-- ============================================================ -->
+<section class="page" id="p-auto">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi"><div class="l">本月销量</div><div class="v">183<small>台</small></div><div class="d">目标 230 台 · 缺口 47</div></div>
+    <div class="kpi"><div class="l">线索量</div><div class="v">1,860<small>条</small></div><div class="d">留资成本 214 元</div></div>
+    <div class="kpi"><div class="l">线索成交率</div><div class="v">9.8<small>%</small></div><div class="d"><span class="up">▲ 环比 +0.9pt</span></div></div>
+    <div class="kpi"><div class="l">库存台数</div><div class="v warn">246<small>台</small></div><div class="d">占用资金 3,180 万</div></div>
+    <div class="kpi"><div class="l">平均车龄</div><div class="v warn">61<small>天</small></div><div class="d"><span class="down">超 90 天 38 台</span></div></div>
+    <div class="kpi"><div class="l">单车毛利</div><div class="v">7,240<small>元</small></div><div class="d">含金融保险 2,180 元</div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr 1.15fr;margin-top:12px">
+    <div class="card">
+      <h3>销售转化漏斗</h3><div class="sub">本月累计</div>
+      <div class="funnel">
+        <div class="fn"><div class="fl">线索</div><div class="fb"><i style="width:100%;background:#d1453b"></i><span>1,860</span></div><div class="fr">—</div></div>
+        <div class="fn"><div class="fl">有效跟进</div><div class="fb"><i style="width:71%;background:#d1453b"></i><span>1,320</span></div><div class="fr">71%</div></div>
+        <div class="fn"><div class="fl">到店</div><div class="fb"><i style="width:34%;background:#d1453b"></i><span>634</span></div><div class="fr">48%</div></div>
+        <div class="fn"><div class="fl">试驾</div><div class="fb"><i style="width:23%;background:#d1453b"></i><span>428</span></div><div class="fr">68%</div></div>
+        <div class="fn"><div class="fl">订单</div><div class="fb"><i style="width:11%;background:#d1453b"></i><span>206</span></div><div class="fr">48%</div></div>
+        <div class="fn"><div class="fl">交付</div><div class="fb"><i style="width:10%;background:#d1453b"></i><span>183</span></div><div class="fr">89%</div></div>
+      </div>
+      <div class="note" style="margin-top:12px"><b>断点：</b>"有效跟进 → 到店"仅 48%，低于行业 60%。建议对 3 天未邀约成功的线索强制转派。</div>
+    </div>
+
+    <div class="card">
+      <h3>渠道来源与质量</h3><div class="sub">左：线索占比　右：成交率</div>
+      <table>
+        <thead><tr><th>渠道</th><th>线索</th><th>成交</th><th>成交率</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">网约车平台司机</td><td>412</td><td>78</td><td><span class="tag t-grn">18.9%</span></td></tr>
+          <tr><td class="nm">垂类平台投放</td><td>620</td><td>41</td><td><span class="tag t-amb">6.6%</span></td></tr>
+          <tr><td class="nm">短视频直播</td><td>468</td><td>29</td><td><span class="tag t-amb">6.2%</span></td></tr>
+          <tr><td class="nm">老客转介绍</td><td>186</td><td>27</td><td><span class="tag t-grn">14.5%</span></td></tr>
+          <tr><td class="nm">大客户 / 网约车公司</td><td>94</td><td>8</td><td><span class="tag t-blu">8.5%</span></td></tr>
+          <tr><td class="nm">自然进店</td><td>80</td><td>13</td><td><span class="tag t-blu">16.3%</span></td></tr>
+        </tbody>
+      </table>
+      <div class="note" style="margin-top:10px"><b>最大机会：</b>平台司机线索成交率是投放线索的 <b>2.9 倍</b>，但只占线索量 22%。建议把司机端换车/购车入口做成常驻。</div>
+    </div>
+
+    <div class="card">
+      <h3>库存车龄与资金占用</h3><div class="sub">超 90 天车辆需强制促销或调拨</div>
+      <div class="chart" data-c="bars" data-v="86,74,48,26,12" data-lab="0-30天,31-60,61-90,91-120,120以上" data-col="#d1453b"></div>
+      <div class="sect" style="margin:14px 0 8px">业务协同：平台司机购车池</div>
+      <div class="kv"><span class="k">在营司机</span><span style="flex:1">车龄超 4 年、可置换</span><b>1,286 人</b></div>
+      <div class="kv"><span class="k">已建档意向</span><span style="flex:1">近 90 天有咨询</span><b>412 人</b></div>
+      <div class="kv"><span class="k">以租代购在贷</span><span style="flex:1">在贷余额 2,840 万</span><b class="warn">逾期 17 户</b></div>
+      <div class="kv" style="border:0"><span class="k">本月转化</span><span style="flex:1">司机购车 / 租转购</span><b class="up">78 台</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 6：跑动作战台                                            -->
+<!-- ============================================================ -->
+<section class="page" id="p-field">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi"><div class="l">今日外出</div><div class="v">23<small>人</small></div><div class="d">已签到 19 · 未签到 4</div></div>
+    <div class="kpi"><div class="l">在办事项</div><div class="v">147<small>项</small></div><div class="d">本周新增 32</div></div>
+    <div class="kpi"><div class="l">卡点事项</div><div class="v down">12<small>项</small></div><div class="d"><span class="down">最长 43 天</span></div></div>
+    <div class="kpi"><div class="l">需我出面</div><div class="v warn">3<small>项</small></div><div class="d">已升级至董事长</div></div>
+    <div class="kpi"><div class="l">本月拜访</div><div class="v">186<small>次</small></div><div class="d">政府 74 · 业主 62 · 电网 50</div></div>
+    <div class="kpi"><div class="l">事项办结率</div><div class="v">78<small>%</small></div><div class="d"><span class="up">▲ 环比 +6pt</span></div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.75fr 1fr;margin-top:12px">
+    <div class="card">
+      <h3>事项办理台账 <span class="more" onclick="drill('升级规则','卡点 >7 天升级分管领导，>15 天升级董事长，>30 天进入经营例会议题')">升级规则 →</span></h3>
+      <div class="sub">每一项都必须回答四个问题：卡在哪、卡了多久、下一步谁去、什么时候办完</div>
+      <table>
+        <thead><tr><th>事项</th><th>关联项目</th><th>对接单位 / 关键人</th><th>状态</th><th>已卡</th><th>责任人</th><th>期限</th><th style="width:64px"></th></tr></thead>
+        <tbody id="fieldbody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>移动端跑动闭环</h3>
+      <div class="sub">现场 30 秒回填，桌面端指标自动更新</div>
+      <div style="display:flex;justify-content:center;padding-top:6px">
+        <div class="phone">
+          <div class="pt"><span>9:41</span><span>●●● ▮</span></div>
+          <div class="pb">
+            <div class="pcard" style="border-color:#f3c9c4;background:#fff8f7">
+              <div style="font-size:11px;color:#d1453b">已卡 43 天 · 董事长关注</div>
+              <div style="font-size:13px;font-weight:500;margin:3px 0">临港 100MW 接入系统评审</div>
+              <div style="font-size:11px;color:#79828f">市供电公司 · 规划部 张主任</div>
+            </div>
+            <div class="pcard">
+              <div style="font-size:11px;color:#79828f;margin-bottom:6px">现场签到</div>
+              <div style="background:#eaf1fb;border-radius:7px;padding:8px;font-size:11px;color:#1f5fbf">已定位：市供电公司营业厅<br>08-08 09:26 打卡成功</div>
+            </div>
+            <div class="pcard">
+              <div style="font-size:11px;color:#79828f;margin-bottom:6px">本次进展</div>
+              <div style="font-size:11.5px;line-height:1.7">评审材料已受理，缺《消纳意见》补充件，对方承诺 8/15 前出评审意见</div>
+              <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
+                <span class="tag t-blu">有进展</span><span class="tag t-amb">需补材料</span><span class="tag t-gry">拍照 2</span>
+              </div>
+            </div>
+            <div class="pcard" style="border-color:#bcd4f2">
+              <div style="font-size:11px;color:#79828f;margin-bottom:6px">下一步</div>
+              <div style="font-size:11.5px">8/11 前提交消纳意见　@李工</div>
+              <div style="background:#1f5fbf;color:#fff;text-align:center;border-radius:7px;padding:7px;margin-top:9px;font-size:12px">提交并解除红灯</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sect">政企与客户关系图谱</div>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="card">
+      <h3>关键单位覆盖度</h3><div class="sub">按"是否有稳定对接人"评估</div>
+      <div class="rowline" style="margin:9px 0"><span style="width:96px;font-size:12px">市发改委</span><div class="bar" style="flex:1"><i style="width:90%;background:#12866a"></i></div><span class="sm">强</span></div>
+      <div class="rowline" style="margin:9px 0"><span style="width:96px;font-size:12px">市自然资源局</span><div class="bar" style="flex:1"><i style="width:72%;background:#12866a"></i></div><span class="sm">较强</span></div>
+      <div class="rowline" style="margin:9px 0"><span style="width:96px;font-size:12px">市供电公司</span><div class="bar" style="flex:1"><i style="width:45%;background:#c97d0a"></i></div><span class="sm warn">弱</span></div>
+      <div class="rowline" style="margin:9px 0"><span style="width:96px;font-size:12px">省交投</span><div class="bar" style="flex:1"><i style="width:80%;background:#12866a"></i></div><span class="sm">强</span></div>
+      <div class="rowline" style="margin:9px 0"><span style="width:96px;font-size:12px">市交通运输局</span><div class="bar" style="flex:1"><i style="width:38%;background:#d1453b"></i></div><span class="sm down">薄弱</span></div>
+      <div class="note" style="margin-top:10px">供电公司与交通运输局是当前两大薄弱环节，恰好对应新能源接入与网约车合规两类高频卡点。</div>
+    </div>
+
+    <div class="card">
+      <h3>承诺台账</h3><div class="sub">对方口头承诺也要记，到期自动提醒</div>
+      <table>
+        <tbody>
+          <tr><td class="nm">张主任 / 供电公司</td><td class="sm">8/15 出评审意见</td><td><span class="tag t-amb">7 天后</span></td></tr>
+          <tr><td class="nm">陈处 / 市发改委</td><td class="sm">Q3 竞配窗口告知</td><td><span class="tag t-blu">跟踪中</span></td></tr>
+          <tr><td class="nm">刘总 / 省交投</td><td class="sm">8 月拨付进度款</td><td><span class="tag t-red">已逾期 6 天</span></td></tr>
+          <tr><td class="nm">王科 / 交通运输局</td><td class="sm">协助车辆运输证批量办理</td><td><span class="tag t-amb">本月内</span></td></tr>
+          <tr><td class="nm">周经理 / 主机厂</td><td class="sm">追加 40 台配额</td><td><span class="tag t-grn">已兑现</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>跑动效能排行</h3><div class="sub">不看跑了多少次，看办结了多少事</div>
+      <table>
+        <thead><tr><th>人员</th><th>拜访</th><th>办结</th><th>效能</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">李副总</td><td>26</td><td>19</td><td><span class="tag t-grn">73%</span></td></tr>
+          <tr><td class="nm">张经理（新能源）</td><td>34</td><td>21</td><td><span class="tag t-grn">62%</span></td></tr>
+          <tr><td class="nm">赵经理（机电）</td><td>29</td><td>15</td><td><span class="tag t-amb">52%</span></td></tr>
+          <tr><td class="nm">孙主管（场站）</td><td>41</td><td>17</td><td><span class="tag t-amb">41%</span></td></tr>
+          <tr><td class="nm">吴主管（平台合规）</td><td>18</td><td>5</td><td><span class="tag t-red">28%</span></td></tr>
+        </tbody>
+      </table>
+      <div class="note" style="margin-top:10px">孙主管拜访量最高但办结率偏低，需核实是事项难度大还是跑动质量问题。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 7：资金与风控                                            -->
+<!-- ============================================================ -->
+<section class="page" id="p-fin">
+
+  <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+    <div class="kpi"><div class="l">货币资金</div><div class="v">1.86<small>亿</small></div><div class="d">受限 3,200 万</div></div>
+    <div class="kpi"><div class="l">未使用授信</div><div class="v">2.40<small>亿</small></div><div class="d">授信总额 5.6 亿</div></div>
+    <div class="kpi"><div class="l">13 周最低点</div><div class="v warn">2,140<small>万</small></div><div class="d">出现在第 9 周</div></div>
+    <div class="kpi"><div class="l">应收总额</div><div class="v">1.42<small>亿</small></div><div class="d">逾期率 18.4%</div></div>
+    <div class="kpi"><div class="l">在保保函</div><div class="v">8,640<small>万</small></div><div class="d">3 个月内到期 2,100 万</div></div>
+    <div class="kpi"><div class="l">资产负债率</div><div class="v">61.2<small>%</small></div><div class="d"><span class="warn">▲ 较年初 +3.4pt</span></div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.4fr 1fr;margin-top:12px">
+    <div class="card">
+      <h3>未来 13 周资金预测</h3>
+      <div class="sub">柱：周净流（万元）　线：期末余额　虚线：安全线 3,000 万</div>
+      <div class="chart" data-c="cash"></div>
+      <div class="note" style="margin-top:10px"><b>预警：</b>第 9 周（10月上旬）余额跌破安全线，主因是 3 个光伏项目 EPC 进度款集中支付叠加机电设备采购。建议提前启动 5,000 万流贷提款或与省交投协商加快进度款申报。</div>
+    </div>
+    <div class="card">
+      <h3>风险事项清单</h3><div class="sub">按影响金额排序</div>
+      <div id="riskbody"></div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:12px">
+    <div class="card">
+      <h3>各业务线资金占用</h3><div class="sub">单位：万元</div>
+      <div class="chart" data-c="bars" data-v="14200,8600,3180,2840" data-lab="新能源在建,机电应收+存货,车辆库存,以租代购在贷" data-col="#5b4fc4"></div>
+    </div>
+    <div class="card">
+      <h3>投资与回报跟踪</h3><div class="sub">已投运项目实际 vs 测算</div>
+      <table>
+        <thead><tr><th>项目</th><th>测算IRR</th><th>实际</th><th>偏差</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">滨海 80MW 光伏</td><td>7.8%</td><td>8.2%</td><td><span class="tag t-grn">+0.4</span></td></tr>
+          <tr><td class="nm">北山 50MW 风电</td><td>8.5%</td><td>7.1%</td><td><span class="tag t-red">-1.4</span></td></tr>
+          <tr><td class="nm">充电场站包（12座）</td><td>9.2%</td><td>6.4%</td><td><span class="tag t-red">-2.8</span></td></tr>
+          <tr><td class="nm">城南 30MW 农光</td><td>7.5%</td><td>7.6%</td><td><span class="tag t-grn">+0.1</span></td></tr>
+        </tbody>
+      </table>
+      <div class="note" style="margin-top:10px">充电场站包偏差最大，源于选址阶段车流量预估过于乐观。建议把"已投运场站实际利用率"反向写入新场站选址模型。</div>
+    </div>
+    <div class="card">
+      <h3>合规证照总表</h3><div class="sub">跨业务线统一到期提醒</div>
+      <table>
+        <tbody>
+          <tr><td class="nm">网约车平台经营许可</td><td class="sm">2027-03-12</td><td><span class="tag t-grn">正常</span></td></tr>
+          <tr><td class="nm">电力业务许可（发电）</td><td class="sm">2026-11-30</td><td><span class="tag t-amb">114 天</span></td></tr>
+          <tr><td class="nm">机电安装总承包三级</td><td class="sm">2026-09-18</td><td><span class="tag t-red">41 天</span></td></tr>
+          <tr><td class="nm">汽车销售授权（2品牌）</td><td class="sm">2026-12-31</td><td><span class="tag t-grn">正常</span></td></tr>
+          <tr><td class="nm">安全生产许可证</td><td class="sm">2026-10-05</td><td><span class="tag t-amb">58 天</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 页面 8：项目详情（下钻示例）                                   -->
+<!-- ============================================================ -->
+<section class="page" id="p-detail">
+
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:16px;font-weight:500">临港 100MW 渔光互补项目</div>
+        <div class="sub" style="margin-top:3px">项目编号 NE-2025-018 · 总投资 4.2 亿 · 责任人 张经理 · 分管 李副总</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <span class="tag t-blu">前期手续阶段</span>
+          <span class="tag t-red">接入系统卡点 43 天</span>
+          <span class="tag t-amb">影响年内并网</span>
+          <span class="tag t-pur">董事长关注</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:22px">
+        <div><div class="l" style="font-size:11px;color:var(--muted)">整体进度</div><div style="font-size:22px;font-weight:500">46%</div></div>
+        <div><div class="l" style="font-size:11px;color:var(--muted)">投资执行</div><div style="font-size:22px;font-weight:500">1.1<small style="font-size:12px">亿</small></div></div>
+        <div><div class="l" style="font-size:11px;color:var(--muted)">距并网节点</div><div style="font-size:22px;font-weight:500" class="down">124<small style="font-size:12px">天</small></div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-self:center">
+        <button class="btn" onclick="drill('项目周报','自动汇总本周进展、卡点、下周计划')">生成周报</button>
+        <button class="btn pri" onclick="openDrawer('派单：临港 100MW 接入系统评审')">派单督办</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="card">
+      <h3>手续办理清单</h3><div class="sub">7 项必办手续，1 项超期</div>
+      <table>
+        <tbody>
+          <tr><td class="nm">项目备案</td><td><span class="tag t-grn">已办结</span></td><td class="sm">03-14</td></tr>
+          <tr><td class="nm">用地预审</td><td><span class="tag t-grn">已办结</span></td><td class="sm">04-22</td></tr>
+          <tr><td class="nm">环境影响评价</td><td><span class="tag t-grn">已办结</span></td><td class="sm">05-30</td></tr>
+          <tr><td class="nm">水域滩涂使用</td><td><span class="tag t-blu">办理中</span></td><td class="sm">预计 08-25</td></tr>
+          <tr><td class="nm">接入系统评审</td><td><span class="tag t-red">超期 43 天</span></td><td class="sm">原定 06-26</td></tr>
+          <tr><td class="nm">并网协议</td><td><span class="tag t-gry">未启动</span></td><td class="sm">依赖上项</td></tr>
+          <tr><td class="nm">施工许可</td><td><span class="tag t-gry">未启动</span></td><td class="sm">依赖上项</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>关键里程碑</h3><div class="sub">红色为已偏离基准计划</div>
+      <div class="tl">
+        <div class="it"><div class="a">03-14　完成项目备案</div><div class="b">按期 · 实际提前 6 天</div></div>
+        <div class="it"><div class="a">05-30　环评批复取得</div><div class="b">按期</div></div>
+        <div class="it hot"><div class="a">06-26　接入系统评审（未完成）</div><div class="b">超期 43 天 · 缺消纳意见</div></div>
+        <div class="it hot"><div class="a">09-10　计划开工（高风险）</div><div class="b">若 8/25 前未取得评审意见，将顺延</div></div>
+        <div class="it"><div class="a">12-10　计划并网</div><div class="b">关联年度电价政策窗口</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>跑动记录</h3><div class="sub">该项目累计跑动 21 次</div>
+      <div class="tl">
+        <div class="it hot"><div class="a">08-08　市供电公司规划部</div><div class="b">张经理 · 材料已受理，缺消纳意见</div></div>
+        <div class="it"><div class="a">07-29　市发改委能源科</div><div class="b">李副总 · 协调出具消纳支持函</div></div>
+        <div class="it"><div class="a">07-16　省电力设计院</div><div class="b">张经理 · 修改接入方案第 3 版</div></div>
+        <div class="it"><div class="a">07-02　临港管委会</div><div class="b">张经理 · 落实水域使用前置意见</div></div>
+        <div class="it"><div class="a">06-20　市供电公司</div><div class="b">首次提交接入系统评审申请</div></div>
+      </div>
+      <div class="note" style="margin-top:6px"><b>诊断：</b>21 次跑动集中在执行层，关键症结"消纳指标"需要发改委层面协调。建议由董事长直接对接分管副市长，预计可缩短 20 天以上。</div>
+    </div>
+  </div>
+
+  <div class="sect">项目图纸 · 预算 · 概算</div>
+  <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px">
+    <div class="kpi" onclick="docJump('est')"><div class="l">设计概算总额</div><div class="v">4.18<small>亿</small></div><div class="d">4 个费用科目</div></div>
+    <div class="kpi" onclick="docJump('budget')"><div class="l">施工图预算总额</div><div class="v">4.00<small>亿</small></div><div class="d"><span class="up">较概算 −4.3%</span></div></div>
+    <div class="kpi" onclick="docJump('est')"><div class="l">预算 / 概算</div><div class="v up">95.7<small>%</small></div><div class="d">控制在概算内</div></div>
+    <div class="kpi" onclick="docJump('draw')"><div class="l">图纸版本</div><div class="v">23<small>套</small></div><div class="d">已审定 14 · 评审中 4</div></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <div class="seg" id="doctabs">
+        <button class="on" data-t="draw">图纸</button>
+        <button data-t="budget">预算</button>
+        <button data-t="est">概算</button>
+      </div>
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn pri" onclick="openDocAdd()">＋ 新增<span id="doctabname">图纸</span></button>
+    </div>
+    <div id="doclist"></div>
+  </div>
+</section>
+
+</div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ================= 抽屉 ================= -->
+<div class="mask" id="mask" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dh"><b id="dtitle">下钻明细</b><button class="x" onclick="closeDrawer()">×</button></div>
+  <div class="db" id="dbody"></div>
+  <div class="df">
+    <button class="btn" onclick="closeDrawer()">取消</button>
+    <button class="btn pri" id="dfpri" onclick="runSubmit()">派单并通知</button>
+  </div>
+</div>
+
+<script>
+/* ============ 导航 ============ */
+var TITLES={dash:['经营驾驶舱','全集团 · 2026年8月'],ne:['新能源项目','风电 / 光伏 / 充电场站 · 全周期'],
+traffic:['大交通机电','高速公路 / 国省干线 · 工程与设备供应'],ride:['网约车平台','运力 · 订单 · 合规'],
+auto:['新能源车销售','线索 · 交付 · 库存'],field:['跑动作战台','手续 · 拜访 · 关系 · 卡点升级'],
+fin:['资金与风控','现金流 · 应收 · 授信 · 合规'],detail:['项目详情','临港 100MW 渔光互补项目']};
+
+function go(p){
+  document.querySelectorAll('.nav').forEach(function(n){n.classList.toggle('on',n.dataset.p===p)});
+  document.querySelectorAll('.page').forEach(function(s){s.classList.remove('on')});
+  var el=document.getElementById('p-'+p); if(el)el.classList.add('on');
+  document.getElementById('ttl').textContent=TITLES[p][0];
+  document.getElementById('crumb').textContent=TITLES[p][1];
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.nav').forEach(function(n){n.onclick=function(){go(n.dataset.p)}});
+
+/* ============ 抽屉 ============ */
+var pendingSubmit=submitTask;
+function openDrawer(title,html,onSubmit,opts){
+  opts=opts||{};
+  document.getElementById('dtitle').textContent=title;
+  document.getElementById('dbody').innerHTML=html||taskForm();
+  document.getElementById('dfpri').textContent=opts.priText||'派单并通知';
+  document.querySelector('.drawer .df').style.display=opts.hideFooter?'none':'flex';
+  pendingSubmit=onSubmit||submitTask;
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('mask').classList.add('on');
+}
+function runSubmit(){ pendingSubmit(); }
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('on');
+  document.getElementById('mask').classList.remove('on');
+}
+function taskForm(ctx){
+  return '<div class="note" style="margin-bottom:14px"><b>为什么在这里派单：</b>你看到问题的那一刻，就是决策成本最低的时刻。不用记下来回办公室再说。</div>'+
+  '<div class="field"><label>事项标题</label><input value="'+(ctx||'接入系统评审卡点 · 补充消纳意见')+'"></div>'+
+  '<div class="field"><label>责任人</label><select><option>张经理（新能源事业部）</option><option>李副总（分管）</option><option>王工（技术）</option></select></div>'+
+  '<div class="field"><label>协办 / 抄送</label><div class="chips"><span class="chip on">李副总</span><span class="chip on">计划部</span><span class="chip">财务部</span><span class="chip">法务</span></div></div>'+
+  '<div class="field"><label>完成期限</label><input value="2026-08-15"></div>'+
+  '<div class="field"><label>升级规则</label><div class="chips"><span class="chip on">逾期 3 天升分管</span><span class="chip on">逾期 7 天升董事长</span><span class="chip">进入经营例会</span></div></div>'+
+  '<div class="field"><label>要求提交的证据</label><div class="chips"><span class="chip on">现场签到</span><span class="chip on">对接人反馈</span><span class="chip on">受理回执照片</span></div></div>'+
+  '<div class="field"><label>批示</label><textarea rows="3">消纳指标问题我来对接发改委，你负责把设计院方案在 8/11 前定稿。</textarea></div>';
+}
+function drill(title,desc){
+  openDrawer(title,'<div class="note" style="margin-bottom:14px">'+desc+'</div>'+
+  '<div class="sect" style="margin-top:0">口径与来源</div>'+
+  '<div class="kv"><span class="k">数据来源</span><span>项目管理系统 / 财务系统 / 平台数据仓</span></div>'+
+  '<div class="kv"><span class="k">更新频率</span><span>T+1 每日 02:00 同步，关键预警实时推送</span></div>'+
+  '<div class="kv"><span class="k">统计口径</span><span>管理报表口径，含未开票已完工部分</span></div>'+
+  '<div class="kv" style="border:0"><span class="k">责任部门</span><span>计划运营部</span></div>'+
+  '<div class="sect">继续下钻</div>'+
+  '<div class="chips"><span class="chip">按业务线</span><span class="chip">按区域</span><span class="chip">按责任人</span><span class="chip">按账龄</span><span class="chip">按客户</span></div>'+
+  '<div style="height:14px"></div>'+taskForm(title+' · 专项跟进'));
+}
+function submitTask(){
+  closeDrawer();
+  setTimeout(function(){alert('已派单：责任人将在移动端收到待办，逾期自动升级。\\n该条预警已进入跟踪状态，办结后驾驶舱红灯自动转绿。')},220);
+}
+
+/* ============ 驾驶舱预警数据 ============ */
+var ALERTS=[
+ {lv:'red',t:'临港 100MW 接入系统评审超期',d:'新能源 · 卡在市供电公司 43 天，影响年内并网电价窗口',m:'影响 4.2 亿投资',r:'张经理'},
+ {lv:'red',t:'省交投 3 个标段进度款未申报',d:'大交通 · 已具备申报条件 21 天未上报，1,860 万延迟回款',m:'1,860 万',r:'赵经理'},
+ {lv:'red',t:'536 名司机双证缺失或临期',d:'网约车 · 合规率降至 87%，低于监管红线 90%，面临约谈风险',m:'合规风险',r:'吴主管'},
+ {lv:'amb',t:'机电安装总承包资质 41 天到期',d:'集团 · 换证需提前 60 天申报，已错过最佳窗口',m:'影响投标资格',r:'资质专员'},
+ {lv:'amb',t:'8 月车辆销售缺口 47 台',d:'车销 · 距月末 23 天，按当前日均需提升 38%',m:'340 万收入',r:'销售总监'},
+ {lv:'amb',t:'第 9 周资金余额跌破安全线',d:'资金 · 预测最低 2,140 万，低于 3,000 万安全线',m:'860 万缺口',r:'财务总监'},
+ {lv:'amb',t:'可变情报板库存呆滞 187 天',d:'供应链 · 占用资金 420 万，建议调拨或降价处理',m:'420 万',r:'供应链经理'}
+];
+(function(){
+  var box=document.getElementById('alerts'),h='';
+  ALERTS.forEach(function(a){
+    var col=a.lv==='red'?'#d1453b':'#c97d0a';
+    var tag=a.lv==='red'?'<span class="tag t-red">红灯</span>':'<span class="tag t-amb">黄灯</span>';
+    h+='<div class="alert" onclick="drill(\''+a.t+'\',\''+a.d+'\')">'+
+       '<span class="pip" style="background:'+col+'"></span>'+
+       '<div class="bd"><div class="t1">'+tag+'<span>'+a.t+'</span></div><div class="t2">'+a.d+'</div></div>'+
+       '<div class="rt">'+a.m+'<br><span style="color:#a8b0ba">'+a.r+'</span></div></div>';
+  });
+  box.innerHTML=h;
+})();
+
+/* ============ 手续矩阵 ============ */
+var MAT=[
+ ['临港100MW渔光互补',['ok','ok','ok','do','no','na','na'],46],
+ ['北山二期50MW风电',['ok','ok','ok','ok','ok','do','wa'],78],
+ ['城东屋顶分布式包',['ok','do','wa','na','do','na','na'],38],
+ ['西岭80MW农光互补',['ok','ok','do','wa','do','na','na'],52],
+ ['高速服务区场站包',['ok','ok','na','na','no','na','na'],31],
+ ['经开区重卡充电站',['ok','ok','ok','ok','ok','ok','ok'],96]
+];
+(function(){
+  var b=document.getElementById('matbody'),h='';
+  MAT.forEach(function(r){
+    h+='<tr onclick="go(\'detail\')"><td class="nm">'+r[0]+'</td>';
+    r[1].forEach(function(s){
+      var txt={ok:'✓',do:'…',wa:'!',no:'×',na:'-'}[s];
+      h+='<td><span class="cell c-'+s+'">'+txt+'</span></td>';
+    });
+    var col=r[2]>=80?'#12866a':r[2]>=45?'#c97d0a':'#d1453b';
+    h+='<td><div class="rowline"><div class="bar" style="flex:1"><i style="width:'+r[2]+'%;background:'+col+'"></i></div><span class="sm">'+r[2]+'%</span></div></td></tr>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 新能源项目台账 ============ */
+var NEP=[
+ ['临港100MW渔光互补','光伏','100MW','前期手续',46,'1.1/4.2亿','张经理','t-red|接入卡点'],
+ ['北山二期50MW风电','风电','50MW','建设中',78,'2.6/3.4亿','刘经理','t-grn|正常'],
+ ['西岭80MW农光互补','光伏','80MW','前期手续',52,'0.4/3.1亿','张经理','t-amb|林草待批'],
+ ['城东屋顶分布式包','光伏','36MW','前期手续',38,'0.2/1.4亿','孙主管','t-amb|屋顶产权'],
+ ['经开区重卡充电站','场站','12枪','运营中',96,'0.09亿','孙主管','t-grn|超预期'],
+ ['高速服务区场站包','场站','6站48枪','建设中',31,'0.18/0.42亿','孙主管','t-red|电力报装'],
+ ['滨海80MW光伏','光伏','80MW','运营中',100,'2.9亿','刘经理','t-grn|IRR达标']
+];
+(function(){
+  var b=document.getElementById('nebody'),h='';
+  NEP.forEach(function(r){
+    var col=r[4]>=80?'#12866a':r[4]>=45?'#1f5fbf':'#c97d0a';
+    var tg=r[7].split('|');
+    h+='<tr onclick="go(\'detail\')"><td class="nm">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td>'+
+    '<td><div class="rowline"><div class="bar" style="flex:1"><i style="width:'+r[4]+'%;background:'+col+'"></i></div><span class="sm">'+r[4]+'%</span></div></td>'+
+    '<td class="sm">'+r[5]+'</td><td>'+r[6]+'</td><td><span class="tag '+tg[0]+'">'+tg[1]+'</span></td>'+
+    '<td><button class="act" onclick="event.stopPropagation();openDrawer(\'派单：'+r[0]+'\')">督办</button></td></tr>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 跑动事项台账 ============ */
+var FIELD=[
+ ['接入系统评审','临港100MW','市供电公司 / 张主任','t-red|超期卡点',43,'张经理','08-15','danger'],
+ ['进度款申报','G15沈海标段','省交投 / 刘总','t-red|超期卡点',21,'赵经理','08-12','danger'],
+ ['车辆运输证批量办理','网约车平台','市交通运输局 / 王科','t-red|超期卡点',18,'吴主管','08-20','danger'],
+ ['林草使用手续','西岭80MW','市林业局 / 陈科','t-amb|临近期限',12,'张经理','08-18',''],
+ ['电力报装','服务区场站包','供电所 / 李所','t-amb|临近期限',9,'孙主管','08-16',''],
+ ['屋顶产权确认','城东分布式','园区管委会 / 周主任','t-amb|临近期限',7,'孙主管','08-22',''],
+ ['资质换证申报','集团','住建局 / 资质科','t-amb|临近期限',5,'资质专员','08-25',''],
+ ['竞配窗口对接','Q3新增指标','市发改委 / 陈处','t-blu|办理中',3,'李副总','09-01',''],
+ ['ETC门架天线到货','G30连霍标段','供应商 / 华某某','t-blu|办理中',2,'采购经理','08-14',''],
+ ['以租代购逾期清收','车销','17 户司机','t-blu|办理中',6,'风控专员','08-30','']
+];
+(function(){
+  var b=document.getElementById('fieldbody'),h='';
+  FIELD.forEach(function(r){
+    var tg=r[3].split('|');
+    var dc=r[4]>15?'color:#d1453b':r[4]>7?'color:#c97d0a':'';
+    h+='<tr onclick="openDrawer(\'派单：'+r[0]+'\')"><td class="nm">'+r[0]+'</td><td class="sm">'+r[1]+'</td><td class="sm">'+r[2]+'</td>'+
+    '<td><span class="tag '+tg[0]+'">'+tg[1]+'</span></td><td style="'+dc+'">'+r[4]+' 天</td><td>'+r[5]+'</td><td class="sm">'+r[6]+'</td>'+
+    '<td><button class="act" onclick="event.stopPropagation();openDrawer(\'派单：'+r[0]+'\')">督办</button></td></tr>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 网约车合规预警 ============ */
+var RIDE=[
+ {lv:'red',t:'驾驶员证 30 天内到期',d:'286 人，其中 74 人已过期仍在接单',m:'立即停派'},
+ {lv:'red',t:'车辆运输证缺失',d:'168 台车辆无证运营，单车最高可罚 1 万元',m:'168 台'},
+ {lv:'amb',t:'车辆年检临期',d:'92 台车 45 天内需完成年检',m:'92 台'},
+ {lv:'amb',t:'司机背景审查复核',d:'年度复核到期 214 人，需重新核验',m:'214 人'},
+ {lv:'amb',t:'数据接入监管平台',d:'订单数据推送成功率 96.2%，低于要求 99%',m:'合规扣分'}
+];
+(function(){
+  var b=document.getElementById('ridealert'),h='';
+  RIDE.forEach(function(a){
+    var col=a.lv==='red'?'#d1453b':'#c97d0a';
+    var tag=a.lv==='red'?'<span class="tag t-red">红灯</span>':'<span class="tag t-amb">黄灯</span>';
+    h+='<div class="alert" onclick="openDrawer(\'派单：'+a.t+'\')"><span class="pip" style="background:'+col+'"></span>'+
+    '<div class="bd"><div class="t1">'+tag+'<span>'+a.t+'</span></div><div class="t2">'+a.d+'</div></div>'+
+    '<div class="rt">'+a.m+'</div></div>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 风险清单 ============ */
+var RISK=[
+ {lv:'red',t:'第 9 周资金缺口 860 万',d:'需提前启动流贷提款或加快回款'},
+ {lv:'red',t:'省交投应收 1,860 万逾期 6 天',d:'对方承诺 8 月拨付未兑现'},
+ {lv:'amb',t:'保函 2,100 万 3 个月内到期',d:'需评估是否续保及占用授信'},
+ {lv:'amb',t:'充电场站包 IRR 偏差 -2.8pt',d:'12 座场站中 5 座未达测算利用率'},
+ {lv:'amb',t:'资产负债率升至 61.2%',d:'较年初 +3.4pt，接近内控上限 65%'},
+ {lv:'amb',t:'以租代购逾期 17 户',d:'在贷余额 2,840 万，逾期率 3.1%'}
+];
+(function(){
+  var b=document.getElementById('riskbody'),h='';
+  RISK.forEach(function(a){
+    var col=a.lv==='red'?'#d1453b':'#c97d0a';
+    h+='<div class="alert" onclick="drill(\''+a.t+'\',\''+a.d+'\')"><span class="pip" style="background:'+col+'"></span>'+
+    '<div class="bd"><div class="t1"><span>'+a.t+'</span></div><div class="t2">'+a.d+'</div></div></div>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 甘特 ============ */
+var GT=[
+ ['G15 沈海高速机电','40','32','late'],['G30 连霍收费系统','20','55',''],
+ ['S12 国道照明改造','10','78',''],['京港澳隧道机电','55','30','late'],
+ ['沿海高速监控升级','30','42',''],['国道 205 标线工程','5','88',''],
+ ['城际快速路机电','62','25','late']
+];
+(function(){
+  var b=document.getElementById('gantt');
+  var h='<div class="row hdr"><div class="nmc">标段</div><div class="track"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div></div>';
+  GT.forEach(function(r){
+    var late=r[3]==='late';
+    h+='<div class="row"><div class="nmc">'+r[0]+(late?' <span class="tag t-red" style="font-size:10px">滞后</span>':'')+'</div>'+
+    '<div class="track"><div class="seg2" style="left:'+r[1]+'%;width:'+r[2]+'%;background:#dbe4f0"></div>'+
+    '<div class="seg2" style="left:'+r[1]+'%;width:'+(r[2]*(late?0.55:0.8))+'%;background:'+(late?'#d1453b':'#1f5fbf')+'"></div></div></div>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 运力热力 ============ */
+var HEAT=[['周一',['no','ok','do','ok','no','wa','do']],['周二',['no','ok','do','ok','no','wa','do']],
+['周三',['no','ok','do','ok','no','wa','do']],['周四',['no','ok','do','wa','no','wa','do']],
+['周五',['no','wa','do','wa','no','no','wa']],['周六',['ok','wa','wa','wa','no','no','wa']],
+['周日',['do','wa','wa','wa','wa','no','do']]];
+(function(){
+  var b=document.getElementById('heatbody'),h='';
+  HEAT.forEach(function(r){
+    h+='<tr><td class="sm">'+r[0]+'</td>';
+    r[1].forEach(function(s){h+='<td><span class="cell c-'+s+'" style="width:100%"></span></td>'});
+    h+='</tr>';
+  });
+  b.innerHTML=h;
+})();
+
+/* ============ 图表渲染 ============ */
+function svg(w,h,inner){return '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:auto;display:block">'+inner+'</svg>'}
+
+function spark(v,col){
+  var w=260,h=40,mx=Math.max.apply(null,v),mn=Math.min.apply(null,v),rg=(mx-mn)||1;
+  var pts=v.map(function(d,i){return (i/(v.length-1)*w).toFixed(1)+','+(h-4-(d-mn)/rg*(h-10)).toFixed(1)});
+  return svg(w,h,'<polyline fill="none" stroke="'+col+'" stroke-width="1.8" points="'+pts.join(' ')+'"/>'+
+  '<polygon fill="'+col+'" opacity=".08" points="0,'+h+' '+pts.join(' ')+' '+w+','+h+'"/>');
+}
+function bars(v,labs,col){
+  var w=420,h=150,n=v.length,mx=Math.max.apply(null,v),bw=w/n*0.56,gap=w/n;
+  var s='';
+  v.forEach(function(d,i){
+    var bh=(d/mx)*(h-46),x=i*gap+(gap-bw)/2,y=h-30-bh;
+    s+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="3" fill="'+col+'" opacity=".85"/>';
+    s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y-5).toFixed(1)+'" font-size="10" fill="#79828f" text-anchor="middle">'+d.toLocaleString()+'</text>';
+    s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(h-11)+'" font-size="9.5" fill="#79828f" text-anchor="middle">'+labs[i]+'</text>';
+  });
+  return svg(w,h,s);
+}
+function area(col){
+  var v=[26,28,25,30,32,29,34,36,33,38,35,40,42,39,44,41,46,43,48,45,50,47,44,49,46,52,48,54,51,56];
+  var w=460,h=150,mx=60,s='';
+  for(var g=0;g<4;g++){var y=20+g*32;s+='<line x1="0" y1="'+y+'" x2="'+w+'" y2="'+y+'" stroke="#eef0f4" stroke-width="1"/>'}
+  var pts=v.map(function(d,i){return (i/(v.length-1)*w).toFixed(1)+','+(h-20-(d/mx)*(h-40)).toFixed(1)});
+  s+='<polygon fill="'+col+'" opacity=".12" points="0,'+(h-20)+' '+pts.join(' ')+' '+w+','+(h-20)+'"/>';
+  s+='<polyline fill="none" stroke="'+col+'" stroke-width="2" points="'+pts.join(' ')+'"/>';
+  s+='<text x="2" y="12" font-size="10" fill="#79828f">近 30 日</text>';
+  return svg(w,h,s);
+}
+function combo(){
+  var rev=[3200,2800,4100,3600,4800,5200,4400,5600,6100,5300,6800,7200];
+  var cf=[420,-260,880,510,1200,1860,760,1420,2100,1180,1860,3240];
+  var w=520,h=180,n=12,gap=w/n,bw=gap*0.5,mx=8000,cmin=-800,cmax=3600;
+  var s='';
+  for(var g=0;g<4;g++){var y=16+g*36;s+='<line x1="0" y1="'+y+'" x2="'+w+'" y2="'+y+'" stroke="#eef0f4"/>'}
+  rev.forEach(function(d,i){
+    var bh=(d/mx)*(h-52),x=i*gap+(gap-bw)/2,y=h-32-bh;
+    s+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="2.5" fill="#1f5fbf" opacity=".22"/>';
+  });
+  var pts=cf.map(function(d,i){return (i*gap+gap/2).toFixed(1)+','+(h-32-((d-cmin)/(cmax-cmin))*(h-58)).toFixed(1)});
+  s+='<polyline fill="none" stroke="#12866a" stroke-width="2" points="'+pts.join(' ')+'"/>';
+  cf.forEach(function(d,i){var p=pts[i].split(',');s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.6" fill="#12866a"/>'});
+  for(var i=0;i<12;i++){s+='<text x="'+(i*gap+gap/2).toFixed(1)+'" y="'+(h-12)+'" font-size="9.5" fill="#79828f" text-anchor="middle">'+(i+9>12?i-3:i+9)+'月</text>'}
+  return svg(w,h,s);
+}
+function stackbar(){
+  var d=[['新能源项目',3.4,0.62,'#12866a'],['大交通机电',3.1,0.44,'#1f5fbf'],['网约车平台',1.3,0.16,'#c97d0a'],['车辆销售',2.6,0.19,'#d1453b']];
+  var w=420,h=190,s='',tot=10.4,y=8;
+  d.forEach(function(r){
+    var bw=(r[1]/4)*(w-120);
+    s+='<text x="0" y="'+(y+13)+'" font-size="11" fill="#414954">'+r[0]+'</text>';
+    s+='<rect x="86" y="'+y+'" width="'+bw+'" height="17" rx="3" fill="'+r[3]+'" opacity=".82"/>';
+    s+='<text x="'+(86+bw+7)+'" y="'+(y+13)+'" font-size="10.5" fill="#191d24">'+r[1]+' 亿</text>';
+    y+=25;
+    var gw=(r[2]/0.7)*(w-120);
+    s+='<rect x="86" y="'+y+'" width="'+gw+'" height="8" rx="3" fill="'+r[3]+'" opacity=".34"/>';
+    s+='<text x="'+(86+gw+7)+'" y="'+(y+8)+'" font-size="10" fill="#79828f">毛利 '+r[2]+' 亿</text>';
+    y+=21;
+  });
+  s+='<text x="0" y="'+(y+12)+'" font-size="10.5" fill="#79828f">合计收入 10.4 亿 · 综合毛利率 13.6%</text>';
+  return svg(w,h,s);
+}
+function cash(){
+  var net=[820,-340,610,-180,940,-720,380,-260,-1180,540,1320,-420,880];
+  var w=520,h=190,n=13,gap=w/n,bw=gap*0.5,s='';
+  var bal=[],cur=4200;
+  net.forEach(function(d){cur+=d;bal.push(cur)});
+  var bmax=6000,bmin=1500;
+  var zero=h-60;
+  s+='<line x1="0" y1="'+zero+'" x2="'+w+'" y2="'+zero+'" stroke="#dfe3ea"/>';
+  var safeY=h-42-((3000-bmin)/(bmax-bmin))*(h-80);
+  s+='<line x1="0" y1="'+safeY.toFixed(1)+'" x2="'+w+'" y2="'+safeY.toFixed(1)+'" stroke="#d1453b" stroke-width="1" stroke-dasharray="4 3"/>';
+  s+='<text x="'+(w-2)+'" y="'+(safeY-4).toFixed(1)+'" font-size="9.5" fill="#d1453b" text-anchor="end">安全线 3,000 万</text>';
+  net.forEach(function(d,i){
+    var bh=Math.abs(d)/1400*46,x=i*gap+(gap-bw)/2;
+    var y=d>=0?zero-bh:zero;
+    s+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="2" fill="'+(d>=0?'#12866a':'#d1453b')+'" opacity=".55"/>';
+  });
+  var pts=bal.map(function(d,i){return (i*gap+gap/2).toFixed(1)+','+(h-42-((d-bmin)/(bmax-bmin))*(h-80)).toFixed(1)});
+  s+='<polyline fill="none" stroke="#1f5fbf" stroke-width="2" points="'+pts.join(' ')+'"/>';
+  bal.forEach(function(d,i){
+    var p=pts[i].split(',');
+    var danger=d<3000;
+    s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(danger?3.4:2.4)+'" fill="'+(danger?'#d1453b':'#1f5fbf')+'"/>';
+  });
+  for(var i=0;i<13;i++){s+='<text x="'+(i*gap+gap/2).toFixed(1)+'" y="'+(h-8)+'" font-size="9" fill="#79828f" text-anchor="middle">W'+(i+1)+'</text>'}
+  return svg(w,h,s);
+}
+
+document.querySelectorAll('.chart').forEach(function(el){
+  var c=el.dataset.c,col=el.dataset.col||'#1f5fbf';
+  if(c==='spark')el.innerHTML=spark(el.dataset.v.split(',').map(Number),col);
+  else if(c==='bars')el.innerHTML=bars(el.dataset.v.split(',').map(Number),el.dataset.lab.split(','),col);
+  else if(c==='area')el.innerHTML=area(col);
+  else if(c==='combo')el.innerHTML=combo();
+  else if(c==='stackbar')el.innerHTML=stackbar();
+  else if(c==='cash')el.innerHTML=cash();
+});
+
+document.addEventListener('click',function(e){
+  if(e.target.classList.contains('chip'))e.target.classList.toggle('on');
+  if(e.target.parentElement&&e.target.parentElement.classList.contains('seg')){
+    Array.prototype.forEach.call(e.target.parentElement.children,function(b){b.classList.remove('on')});
+    e.target.classList.add('on');
+  }
+});
+/* ============ 项目图纸 / 预算 / 概算 ============ */
+var docTab='draw';
+var DRAWINGS=[
+ ['临港项目总平面布置图','总图','V1.0','初设','省电力设计院','2025-09-12','已审定','王工'],
+ ['光伏阵列布置图','电气','V2.1','初设','省电力设计院','2025-10-08','已审定','王工'],
+ ['电气一次接线图','电气','V1.3','初设','省电力设计院','2026-01-15','评审中','李工'],
+ ['接入系统方案图','接入系统','V3.0','初设','省电力设计院','2026-06-20','评审中','李工'],
+ ['光伏区土建施工图','结构/土建','V1.0','施工图','华东院','2026-07-02','编制中','陈工'],
+ ['送出线路路径图','线路','V1.1','施工图','华东院','2026-07-10','编制中','陈工']
+];
+var BUDGETS=[
+ ['施工图预算（全费用）','全册','40,000','V2.0','2026-06-30','已批准','预算部'],
+ ['设备购置预算明细','设备购置','17,900','V1.2','2026-05-18','已批准','造价咨询'],
+ ['建筑安装工程预算','建安工程','13,600','V1.5','2026-06-10','已批准','预算部'],
+ ['其他及预备费预算','其他费用','8,500','V1.0','2026-06-22','审核中','预算部']
+];
+var ESTIMATES=[
+ ['设计概算（报批稿）','全册','41,800','V3.0','2025-08-20','已批准','省电力设计院'],
+ ['设备购置概算','设备购置','18,600','V3.0','2025-08-20','已批准','省电力设计院'],
+ ['建安工程概算','建安工程','14,200','V3.0','2025-08-20','已批准','省电力设计院'],
+ ['其他及预备费概算','其他费用','9,000','V3.0','2025-08-20','已批准','省电力设计院']
+];
+var ESTCMP=[
+ ['设备购置费',18600,17900],
+ ['建安工程费',14200,13600],
+ ['其他费用',6400,6100],
+ ['预备费',2600,2400]
+];
+
+function _v(n){var el=document.querySelector('#dbody [name="'+n+'"]');return el?el.value.trim():''}
+function _sel(n){var el=document.querySelector('#dbody [name="'+n+'"]');return el?el.value:''}
+function _chip(){var c=document.querySelector('#dbody .chip.on');return c?c.textContent:'编制中'}
+function _today(){return new Date().toISOString().slice(0,10)}
+
+function stTag(s){
+  if(s==='已审定'||s==='已批准')return '<span class="tag t-grn">'+s+'</span>';
+  if(s==='评审中'||s==='审核中')return '<span class="tag t-amb">'+s+'</span>';
+  if(s==='作废')return '<span class="tag t-red">'+s+'</span>';
+  return '<span class="tag t-blu">'+s+'</span>';
+}
+function docForm(t){
+  if(t==='draw'){
+    return '<div class="note" style="margin-bottom:12px"><b>图纸管理要点：</b>每一版图纸都留痕，设计院上传新版本自动通知校核人与审批人；版本变更可一键回溯，避免现场按错版本施工。</div>'+
+    '<div class="field"><label>图纸名称</label><input name="dname" placeholder="如：光伏区电气施工图"></div>'+
+    '<div class="field"><label>图纸类型</label><select name="dtype"><option>总图</option><option>电气</option><option>结构/土建</option><option>线路</option><option>接入系统</option><option>BIM模型</option></select></div>'+
+    '<div class="field"><label>所属阶段</label><select name="dstage"><option>初设</option><option>施工图</option><option>竣工</option></select></div>'+
+    '<div class="field"><label>版本号</label><input name="dver" value="V1.0"></div>'+
+    '<div class="field"><label>编制单位 / 设计院</label><input name="dorg" placeholder="如：省电力设计院"></div>'+
+    '<div class="field"><label>编制 / 校核人</label><input name="dperson" placeholder="设计或校核人"></div>'+
+    '<div class="field"><label>状态</label><div class="chips"><span class="chip on">编制中</span><span class="chip">评审中</span><span class="chip">已审定</span><span class="chip">作废</span></div></div>'+
+    '<div class="field"><label>附件</label><input type="file" style="padding:6px"></div>';
+  }
+  if(t==='budget'){
+    return '<div class="note" style="margin-bottom:12px"><b>控制红线：</b>单项预算不得超过对应概算，预算超概自动触发红色预警，需董事长审批后方可执行。</div>'+
+    '<div class="field"><label>预算名称</label><input name="bname" placeholder="如：施工图预算（全费用）"></div>'+
+    '<div class="field"><label>科目类别</label><select name="bcat"><option>全册</option><option>设备购置</option><option>建安工程</option><option>其他费用</option><option>预备费</option></select></div>'+
+    '<div class="field"><label>金额（万元）</label><input name="bamt" placeholder="如：17900" inputmode="numeric"></div>'+
+    '<div class="field"><label>版本号</label><input name="bver" value="V1.0"></div>'+
+    '<div class="field"><label>编制单位</label><input name="borg" placeholder="如：预算部 / 造价咨询"></div>'+
+    '<div class="field"><label>状态</label><div class="chips"><span class="chip on">编制中</span><span class="chip">审核中</span><span class="chip">已批准</span></div></div>';
+  }
+  return '<div class="note" style="margin-bottom:12px"><b>概算定位：</b>概算是预算的上限依据（概预算对比），也是投资控制的基准线。概算调整需走专题审批。</div>'+
+    '<div class="field"><label>概算名称</label><input name="ename" placeholder="如：设计概算（报批稿）"></div>'+
+    '<div class="field"><label>科目类别</label><select name="ecat"><option>全册</option><option>设备购置</option><option>建安工程</option><option>其他费用</option><option>预备费</option></select></div>'+
+    '<div class="field"><label>金额（万元）</label><input name="eamt" placeholder="如：18600" inputmode="numeric"></div>'+
+    '<div class="field"><label>版本号</label><input name="ever" value="V1.0"></div>'+
+    '<div class="field"><label>编制依据</label><input name="eorg" placeholder="如：可研批复 / 初步设计"></div>'+
+    '<div class="field"><label>状态</label><div class="chips"><span class="chip on">编制中</span><span class="chip">审核中</span><span class="chip">已批准</span></div></div>';
+}
+function openDocAdd(){
+  var t=docTab, title=t==='draw'?'新增图纸':t==='budget'?'新增预算':'新增概算';
+  openDrawer(title,docForm(t),addDoc,{priText:'保存'});
+}
+function addDoc(){
+  var t=docTab, today=_today();
+  if(t==='draw'){
+    var name=_v('dname')||'未命名图纸', typ=_sel('dtype'), stage=_sel('dstage'), ver=_v('dver')||'V1.0', org=_v('dorg')||'—', person=_v('dperson')||'我', st=_chip();
+    DRAWINGS.unshift([name,typ,ver,stage,org,today,st,person]);
+  }else if(t==='budget'){
+    var name=_v('bname')||'未命名预算', cat=_sel('bcat'), amt=_v('bamt')||'0', ver=_v('bver')||'V1.0', org=_v('borg')||'—', st=_chip();
+    BUDGETS.unshift([name,cat,amt,ver,today,st,org]);
+  }else{
+    var name=_v('ename')||'未命名概算', cat=_sel('ecat'), amt=_v('eamt')||'0', ver=_v('ever')||'V1.0', org=_v('eorg')||'—', st=_chip();
+    ESTIMATES.unshift([name,cat,amt,ver,today,st,org]);
+  }
+  closeDrawer(); renderDoc();
+  setTimeout(function(){alert('已新增'+(t==='draw'?'图纸':t==='budget'?'预算':'概算')+'：'+name+'\n已记入项目文档库，关联责任人可在移动端查看与更新版本。')},200);
+}
+function openDocView(type,name){
+  var title=type==='draw'?'图纸详情':type==='budget'?'预算详情':'概算详情';
+  openDrawer(title,'<div class="kv"><span class="k">名称</span><span style="flex:1">'+name+'</span></div>'+
+    '<div class="kv"><span class="k">关联项目</span><span style="flex:1">临港 100MW 渔光互补</span></div>'+
+    '<div class="kv"><span class="k">版本历史</span><span style="flex:1">V1.0 初版 → V1.1 校核 → V1.2 评审 → V2.0 审定</span></div>'+
+    '<div class="kv"><span class="k">关联审批</span><span style="flex:1">'+(type==='draw'?'接入系统方案图评审':'概预算审定专题')+'</span></div>'+
+    '<div class="kv" style="border:0"><span class="k">预览</span><span style="flex:1;color:#79828f">原型环境不承载真实文件，正式版将集成图文档在线预览与版本对比</span></div>'+
+    '<div class="note" style="margin-top:12px"><b>协作：</b>设计院/预算部上传新版本后，系统自动通知校核人与审批人，版本变更留痕、一键回溯，杜绝现场按错版本施工或按超概预算采购。</div>',
+    function(){closeDrawer();},{hideFooter:true});
+}
+function estCmpHtml(){
+  var h='<div class="sect" style="margin:16px 0 8px">概预算对比 · 预算控制（预算不得突破概算）</div><div class="card" style="border:0;background:#fafbfc">';
+  h+='<table><thead><tr><th>费用科目</th><th>概算(万元)</th><th>预算(万元)</th><th>偏差(万元)</th><th>偏差率</th></tr></thead><tbody>';
+  ESTCMP.forEach(function(r){
+    var dev=r[2]-r[1], rate=dev/r[1]*100, sign=dev>0?'+':'';
+    h+='<tr><td class="nm">'+r[0]+'</td><td>'+r[1].toLocaleString()+'</td><td>'+r[2].toLocaleString()+'</td>'+
+       '<td class="'+(dev>0?'down':'up')+'">'+sign+dev.toLocaleString()+'</td>'+
+       '<td><span class="tag '+(dev>0?'t-red':'t-grn')+'">'+sign+rate.toFixed(1)+'%</span></td></tr>';
+  });
+  var totE=ESTCMP.reduce(function(a,b){return a+b[1]},0), totB=ESTCMP.reduce(function(a,b){return a+b[2]},0);
+  var dev=totB-totE, rate=dev/totE*100, sign=dev>0?'+':'';
+  h+='<tr style="font-weight:500;border-top:2px solid #e6e9ee"><td>合计</td><td>'+totE.toLocaleString()+'</td><td>'+totB.toLocaleString()+'</td>'+
+     '<td class="'+(dev>0?'down':'up')+'">'+sign+dev.toLocaleString()+'</td>'+
+     '<td><span class="tag '+(dev>0?'t-red':'t-grn')+'">'+sign+rate.toFixed(1)+'%</span></td></tr>';
+  h+='</tbody></table>';
+  h+='<div class="note" style="margin-top:10px"><b>管理提示：</b>本项目预算较概算'+(dev>0?'超概 ':'节约 ')+Math.abs(dev).toLocaleString()+' 万元（'+(dev>0?'+':'')+rate.toFixed(1)+'%），整体受控。任一科目预算超概即触发红色预警，需董事长审批后方可执行。</div>';
+  h+='</div>';
+  return h;
+}
+function renderDoc(){
+  var h='';
+  if(docTab==='draw'){
+    h+='<table><thead><tr><th>图纸名称</th><th>类型</th><th>版本</th><th>阶段</th><th>编制单位</th><th>日期</th><th>状态</th><th style="width:56px"></th></tr></thead><tbody>';
+    DRAWINGS.forEach(function(r){
+      h+='<tr onclick="openDocView(\'draw\',\''+r[0]+'\')"><td class="nm">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td class="sm">'+r[4]+'</td><td class="sm">'+r[5]+'</td><td>'+stTag(r[6])+'</td><td><button class="act" onclick="event.stopPropagation();openDocView(\'draw\',\''+r[0]+'\')">查看</button></td></tr>';
+    });
+    h+='</tbody></table>';
+  }else if(docTab==='budget'){
+    h+='<table><thead><tr><th>预算名称</th><th>科目</th><th>金额(万元)</th><th>版本</th><th>日期</th><th>状态</th><th style="width:56px"></th></tr></thead><tbody>';
+    BUDGETS.forEach(function(r){
+      h+='<tr onclick="openDocView(\'budget\',\''+r[0]+'\')"><td class="nm">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td class="sm">'+r[4]+'</td><td>'+stTag(r[5])+'</td><td><button class="act" onclick="event.stopPropagation();openDocView(\'budget\',\''+r[0]+'\')">查看</button></td></tr>';
+    });
+    h+='</tbody></table>';
+  }else{
+    h+='<table><thead><tr><th>概算名称</th><th>科目</th><th>金额(万元)</th><th>版本</th><th>日期</th><th>状态</th><th style="width:56px"></th></tr></thead><tbody>';
+    ESTIMATES.forEach(function(r){
+      h+='<tr onclick="openDocView(\'est\',\''+r[0]+'\')"><td class="nm">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td class="sm">'+r[4]+'</td><td>'+stTag(r[5])+'</td><td><button class="act" onclick="event.stopPropagation();openDocView(\'est\',\''+r[0]+'\')">查看</button></td></tr>';
+    });
+    h+='</tbody></table>'+estCmpHtml();
+  }
+  document.getElementById('doclist').innerHTML=h;
+  document.getElementById('doctabname').textContent=docTab==='draw'?'图纸':docTab==='budget'?'预算':'概算';
+}
+function docJump(t){
+  docTab=t;
+  document.querySelectorAll('#doctabs button').forEach(function(x){x.classList.toggle('on',x.dataset.t===t)});
+  renderDoc();
+  var el=document.getElementById('p-detail'); if(el)el.scrollIntoView({behavior:'smooth'});
+}
+renderDoc();
+document.querySelectorAll('#doctabs button').forEach(function(b){b.onclick=function(){docTab=b.dataset.t;renderDoc();}});
+
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer()});
+</script>
+</body>
+</html>

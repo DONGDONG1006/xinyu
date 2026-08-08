@@ -1,0 +1,40 @@
+# 甘肃新煜科技工作台 · Fly.io 部署配置
+# 用法：
+#   1) 安装 flyctl 并登录：curl -L https://fly.io/install.sh | sh && fly auth login
+#   2) 在仓库根执行：fly launch --no-deploy   （按提示命名、选区域，如 hkg）
+#   3) 创建持久卷：fly volumes create xinyu_data --region hkg --size 1
+#   4) 部署：fly deploy
+#   5) 部署后 Fly 分配公网域名（如 https://xinyu-workbench.fly.dev）
+#   6) 把该域名填入工作台 App：管理员 → 平台管理后台 → 系统设置 → 协同服务地址
+#
+# 持久化：挂载卷 xinyu_data 到 /data，db.json 落于 /data/db.json。
+
+app = "xinyu-workbench"
+primary_region = "hkg"
+
+[build]
+  dockerfile = "server/deploy/Dockerfile"
+
+[env]
+  DB_PATH = "/data/db.json"
+
+[mounts]
+  source = "xinyu_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8090
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+  [[http_service.checks]]
+    method = "GET"
+    path = "/api/ping"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"

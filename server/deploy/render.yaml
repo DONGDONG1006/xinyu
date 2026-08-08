@@ -1,0 +1,24 @@
+# 甘肃新煜科技工作台 · Render 部署配置（Docker）
+# 用法：
+#   1) 把整个仓库推到 GitHub
+#   2) Render 新建 → Blueprints → 连接本仓库（自动读取 render.yaml）
+#      或 New Web Service → 选本仓库 → Environment 选 Docker → Dockerfile 路径填 server/deploy/Dockerfile
+#   3) 部署后 Render 分配公网域名（如 https://xinyu-workbench.onrender.com）
+#   4) 把该域名填入工作台 App：管理员 → 平台管理后台 → 系统设置 → 协同服务地址
+#
+# 持久化：挂载 /data 卷，db.json 落于 /data/db.json（Free 版若不支持磁盘则降级为临时盘，
+#          数据仍可通过 App 内「导出 JSON 备份」保全，建议定期导出）。
+
+services:
+  - type: web
+    name: xinyu-workbench
+    dockerfilePath: ./server/deploy/Dockerfile
+    dockerContext: .
+    env:
+      DB_PATH: /data/db.json
+    healthCheckPath: /api/ping
+    plan: free
+    disk:
+      name: xinyu-data
+      mountPath: /data
+      sizeGB: 1

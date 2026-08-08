@@ -1,0 +1,25 @@
+# 甘肃新煜科技工作台 · 协同后端 systemd 单元
+# 安装（在云主机上）：
+#   sudo cp server/deploy/xinyu-workbench.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now xinyu-workbench
+# 日志：sudo journalctl -u xinyu-workbench -f
+[Unit]
+Description=甘肃新煜科技工作台 · 协同后端
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/xinyu-workbench/server
+ExecStart=/usr/bin/node /opt/xinyu-workbench/server/server.js
+Environment=PORT=8090
+Environment=DB_PATH=/opt/xinyu-workbench/server/db.json
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=3
+User=www-data
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,26 @@
+# 甘肃新煜科技工作台 · Railway 部署配置
+# 用法：
+#   1) 把整个仓库推到 GitHub（或 git 平台）
+#   2) Railway 新建 Project → Deploy from GitHub Repo → 选本仓库
+#   3) Railway 会自动读取本文件用 Docker 部署；构建上下文为仓库根
+#   4) 部署后 Railway 分配公网域名（如 https://xinyu-workbench.up.railway.app）
+#   5) 把该域名填入工作台 App：管理员 → 平台管理后台 → 系统设置 → 协同服务地址
+#
+# 说明：DB_PATH 指向持久卷 /data，db.json 不会因重启丢失。
+
+[build]
+dockerfilePath = "server/deploy/Dockerfile"
+# 构建上下文默认即仓库根目录（Dockerfile 内 COPY server/... 与 COPY workbench-app/... 以此为准）
+
+[env]
+DB_PATH = "/data/db.json"
+
+[deploy]
+healthcheckPath = "/api/ping"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[[volumes]]
+storage = 1
+dir = "/data"

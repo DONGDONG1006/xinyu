@@ -1,0 +1,10 @@
+{
+  "name": "gansu-xinyu-workbench-server",
+  "version": "4.0.0",
+  "description": "甘肃新煜科技工作台 · 多设备协同后端（零依赖 Node）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}
