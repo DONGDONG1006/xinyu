@@ -759,8 +759,14 @@ input::placeholder,textarea::placeholder{color:#4d5c78}
 
 /* ============ 报销发票录入 ============ */
 .invlst{display:flex;flex-direction:column;gap:7px;margin-bottom:6px}
-.invrow{display:grid;grid-template-columns:1.05fr .95fr .95fr .75fr 1.3fr auto;gap:6px;align-items:center}
+.invrow{display:grid;grid-template-columns:1.05fr .95fr .95fr .75fr 1.3fr auto;gap:6px;align-items:center;position:relative}
 .invrow select,.invrow input{padding:8px 9px;border-radius:8px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:var(--txt);font-size:12.5px;width:100%;min-width:0}
+.invrow .ocrtag{grid-column:1 / -1;font-size:11px;padding:3px 8px;border-radius:4px;align-self:start}
+.invrow .ocrtag.ok{background:rgba(25,195,125,.15);color:#19c37d}
+.invrow .ocrtag:not(.ok){background:rgba(255,179,71,.15);color:#ffb347}
+.invrow .invthumb{grid-column:1 / -1;margin:2px 0 4px}
+.invrow .invthumb img{max-height:90px;max-width:100%;border-radius:6px;border:1px solid var(--line2)}
+.ocrhint{font-size:10px;color:var(--txt3);margin-left:8px}
 .rflex{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0}
 .rflex>span{font-size:12.5px;color:var(--txt3);white-space:nowrap}
 .rflex input{flex:1;max-width:220px;padding:8px 10px;border-radius:8px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:var(--txt)}

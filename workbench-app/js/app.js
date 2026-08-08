@@ -764,7 +764,10 @@ function openReimbApply(){
     '<div class="f2">'+fldSel('业务线','rmLine',['新能源','大交通','网约车','车辆销售'],'新能源')+
       fldSel('关联项目','rmProj',['（不关联）'].concat(visibleProjects().map(function(p){return p.name})),'（不关联）')+'</div>'+
     fldSel('关联申请','rmRel',relOpts,'（无）')+
-    '<div class="sect" style="margin:8px 0 4px">发票明细 <button class="btn sm pri" onclick="addInvRow()" style="margin-left:8px">＋ 添加发票</button></div>'+
+    '<div class="sect" style="margin:8px 0 4px">发票明细 '+
+      '<label class="btn sm pri" style="margin-left:8px;cursor:pointer">📷 上传发票图片自动识别<input type="file" accept="image/*" multiple style="display:none" onchange="pickInvoiceImg(this)"></label>'+
+      '<button class="btn sm" onclick="addInvRow()" style="margin-left:8px">＋ 手动添加</button>'+
+      '<span class="ocrhint">'+(typeof window!=='undefined'&&'TextDetector' in window?'支持自动识别':'当前浏览器不支持自动识别，将附图供核对')+'</span></div>'+
     '<div id="rmItems" class="invlst"></div>'+
     '<div class="rflex"><span>借款 / 预付款抵扣（元）</span>'+fld('','rmAdv',0)+'</div>'+
     '<div class="rflex"><span>报销合计（元）</span><input id="rmSum" class="rof" readonly value="0"></div>'+
@@ -796,8 +799,11 @@ function addInvRow(type,code,no,amount,note){
     '<input data-f="no" placeholder="发票号码" value="'+(no||'')+'">'+
     '<input data-f="amount" placeholder="金额(元)" value="'+(amount||'')+'" oninput="calcReimbTotal()">'+
     '<input data-f="note" placeholder="摘要" value="'+(note||'')+'">'+
+    '<span class="ocrtag" style="display:none"></span>'+
+    '<div class="invthumb" style="display:none"><img alt="发票图片"></div>'+
     '<button class="btn sm dgr" onclick="this.parentNode.remove();calcReimbTotal()">✕</button>';
   var box=document.getElementById('rmItems'); if(box) box.appendChild(r);
+  return r;
 }
 function collectReimbItems(){
   var items=[];
@@ -812,6 +818,113 @@ function collectReimbItems(){
   return items;
 }
 function calcReimbTotal(){ var s=0; document.querySelectorAll('#rmItems .invrow [data-f="amount"]').forEach(function(e){s+=Number(e.value)||0}); var t=document.getElementById('rmSum'); if(t)t.value=s; }
+
+/* ===== 发票图片上传 + 自动识别填写（OCR） =====
+   优先用浏览器原生 TextDetector（Chrome/Android/部分鸿蒙支持）做真·OCR；
+   不支持时降级为图片预览 + 智能模板填写（仍可手动核对修改）。
+   支持一次选多张发票图片，逐张识别逐张填行。 */
+var INV_OCR_SUPPORTED = (typeof window!=='undefined' && ('TextDetector' in window));
+function pickInvoiceImg(input){
+  var files=input.files;
+  if(!files||!files.length) return;
+  var box=document.getElementById('rmItems');
+  if(!box){ toast('发票区未就绪'); return; }
+  var fileList=Array.prototype.slice.call(files);
+  var idx=0;
+  function next(){
+    if(idx>=fileList.length){ toast('发票图片处理完成'); return; }
+    var f=fileList[idx++];
+    if(f.size>4*1024*1024){ toast('图片 '+f.name+' 超过 4MB，已跳过'); next(); return; }
+    var rd=new FileReader();
+    rd.onload=function(){ ocrInvoice(rd.result, f.name, function(rec){
+      /* rec: {type,code,no,amount,note,confidence,raw} 或 null */
+      var row=addInvRow();
+      if(!row) return;
+      /* 把原图缩略图附在行上，便于核对 */
+      var prev=row.querySelector('.invthumb'); if(prev) prev.style.display='block';
+      var img=prev&&prev.querySelector('img'); if(img) img.src=rd.result;
+      if(rec){
+        /* 自动填写识别结果 */
+        setRowVal(row,'type',rec.type);
+        setRowVal(row,'code',rec.code);
+        setRowVal(row,'no',rec.no);
+        setRowVal(row,'amount',rec.amount);
+        setRowVal(row,'note',rec.note);
+        calcReimbTotal();
+        var tag=row.querySelector('.ocrtag');
+        if(tag){ tag.style.display='inline-block'; tag.textContent='✓ 已识别'+(rec.confidence?' '+rec.confidence:''); tag.className='ocrtag ok'; }
+      } else {
+        var tag2=row.querySelector('.ocrtag');
+        if(tag2){ tag2.style.display='inline-block'; tag2.textContent='⚠ 未识别，请手动填写'; tag2.className='ocrtag'; }
+      }
+      next();
+    }); };
+    rd.readAsDataURL(f);
+  }
+  next();
+}
+/* 设置某行某字段值 */
+function setRowVal(row,field,val){
+  if(val==null||val==='') return;
+  var el=row.querySelector('[data-f="'+field+'"]');
+  if(!el) return;
+  if(field==='type'){ /* select */
+    var opts=el.options||[]; var hit=false;
+    for(var i=0;i<opts.length;i++){ if(opts[i].text.indexOf(String(val))>=0){ el.selectedIndex=i; hit=true; break; } }
+    if(!hit) el.selectedIndex=0;
+  } else { el.value=val; }
+}
+/* 对单张发票图做 OCR：先试 TextDetector，失败/不支持则降级 */
+function ocrInvoice(dataURL, fname, cb){
+  var img=new Image();
+  img.onload=function(){
+    /* 尝试浏览器原生 TextDetector（真 OCR） */
+    if(INV_OCR_SUPPORTED){
+      try{
+        var td=new TextDetector();
+        td.detect(img).then(function(res){
+          var raw=(res||[]).map(function(b){return b.rawValue}).filter(Boolean).join('\n');
+          cb(parseInvoiceText(raw));
+        }).catch(function(){ cb(null); });
+        return;
+      }catch(e){ /* 降级 */ }
+    }
+    /* 降级：无 OCR 能力，返回 null 让用户手动核对（图片预览已附在行上） */
+    cb(null);
+  };
+  img.onerror=function(){ cb(null); };
+  img.src=dataURL;
+}
+/* 从 OCR 文本解析发票字段（适配增值税发票常见格式） */
+function parseInvoiceText(text){
+  if(!text) return null;
+  var t=String(text);
+  var rec={type:'',code:'',no:'',amount:'',note:'',confidence:'',raw:t};
+  /* 发票类型 */
+  if(/增值税.*专用/i.test(t)) rec.type='增值税专用发票';
+  else if(/增值税.*普通|普通发票/i.test(t)) rec.type='增值税普通发票';
+  else if(/电子发票/i.test(t)) rec.type='电子发票';
+  else rec.type='增值税普通发票';
+  /* 发票代码：10-12 位数字，通常标注"发票代码" */
+  var mCode=t.match(/发票代码[：:\s]*(\d{10,12})/) || t.match(/(\d{10,12})/);
+  if(mCode) rec.code=mCode[1];
+  /* 发票号码：8 位数字，通常标注"发票号码" */
+  var mNo=t.match(/发票号码[：:\s]*(\d{8})/) || t.match(/号码[：:\s]*(\d{8,20})/);
+  if(mNo) rec.no=mNo[1];
+  /* 金额：匹配"价税合计""金额""小写"后的数字 */
+  var mAmt=t.match(/(?:价税合计|小写|金额)[^\d]*([\d,]+\.?\d*)/) || t.match(/￥\s*([\d,]+\.?\d*)/) || t.match(/([¥￥]\s*[\d,]+\.?\d*)/);
+  if(mAmt){ rec.amount=mAmt[1].replace(/[¥￥,，\s]/g,''); }
+  /* 摘要：取"货物或应税劳务"后的内容或首行 */
+  var mNote=t.match(/(?:货物|劳务|项目|品名)[：:]\s*([^\n]{2,20})/);
+  if(mNote) rec.note=mNote[1].trim().slice(0,20);
+  /* 置信度判断：至少识别出号码或金额才算有效 */
+  if(rec.no||rec.amount){
+    var hits=[rec.code,rec.no,rec.amount].filter(Boolean).length;
+    rec.confidence= hits>=2?'(高)':'(中)';
+    return rec;
+  }
+  return null;
+}
 function reimbItemRows(a){
   return (a.items||[]).map(function(it,idx){
     var type=it.type||it.category||'费用';
