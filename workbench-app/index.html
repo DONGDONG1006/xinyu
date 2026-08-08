@@ -96,6 +96,7 @@
       <div class="nav" data-page="approval"><span class="ic">✓</span>审批中心</div>
     </div>
     <div class="navgrp"><div class="lbl">项目中心</div>
+      <div class="nav" data-page="projects"><span class="ic">▦</span>项目组合总览</div>
       <div id="projNav"></div>
     </div>
     <div class="navgrp adminOnly"><div class="lbl">系统</div>
@@ -369,6 +370,24 @@
       <div class="card scroll"><div id="oppList"></div></div>
     </section>
 
+    <!-- ============ 项目组合总览（参考飞书/钉钉项目管理） ============ -->
+    <section id="p-projects" class="hide">
+      <div class="ptitle"><h1>项目组合总览</h1><span class="sub">全项目进度 · 阶段 · 风险 · 负责人 一屏掌握</span>
+        <div class="spacer"></div>
+        <input id="pjSearch" class="inline-sel" style="min-width:120px;max-width:180px" placeholder="搜索项目名/客户" oninput="projListRender()">
+        <span class="seg" id="pjLineFilter">
+          <button class="on" data-f="all" onclick="pjLineSet('all')">全部</button>
+          <button data-f="新能源" onclick="pjLineSet('新能源')">新能源</button>
+          <button data-f="大交通" onclick="pjLineSet('大交通')">大交通</button>
+          <button data-f="网约车" onclick="pjLineSet('网约车')">网约车</button>
+          <button data-f="车辆销售" onclick="pjLineSet('车辆销售')">销售</button>
+        </span>
+      </div>
+      <div class="grid kpis" id="pjKpi"></div>
+      <div class="sect">项目卡片 <span class="tip">点击卡片进入项目详情</span></div>
+      <div class="card"><div id="pjGrid"></div></div>
+    </section>
+
     <!-- ============ 项目详情 ============ -->
     <section id="p-detail" class="hide">
       <div class="ptitle"><h1 id="dtName">项目详情</h1>
@@ -412,6 +431,14 @@
         <button class="btn pri" onclick="openTripApply()">＋ 出差申请</button>
       </div>
       <div class="grid kpis" id="expKpi"></div>
+      <div class="row" style="margin-top:14px">
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px">月度报销趋势（近 6 月）</div><div class="chart" id="expTrend"></div></div>
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px">按费用类型分布</div><div class="chart" id="expCat"></div></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px">待审 / 已审 金额对比</div><div class="chart" id="expPending"></div></div>
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px" id="expRankTitle">申请人金额排名</div><div class="card scroll" style="border:0;background:transparent;padding:0"><div id="expRank"></div></div></div>
+      </div>
       <div class="card scroll" style="margin-top:12px"><div id="expList"></div></div>
     </section>
 

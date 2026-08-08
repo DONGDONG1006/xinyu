@@ -26,7 +26,7 @@ function kpi(k,v,unit,d,cls,onclick){
 
 /* ---------------- 导航 ---------------- */
 var PAGE_SUB={dash:'经营驾驶舱',newenergy:'新能源项目',transport:'大交通机电',ride:'网约车平台',
-  sales:'车辆销售',contract:'合同管理',fin:'业务财务',run:'跑动作战台',staff:'业务人员管理',map:'项目地图',detail:'项目详情',admin:'平台管理',expense:'费用报销',approval:'审批中心',opportunity:'机会商机',people:'关键人管理'};
+  sales:'车辆销售',contract:'合同管理',fin:'业务财务',run:'跑动作战台',staff:'业务人员管理',map:'项目地图',detail:'项目详情',admin:'平台管理',expense:'费用报销',approval:'审批中心',opportunity:'机会商机',people:'关键人管理',projects:'项目组合总览'};
 function go(page){
   document.querySelectorAll('section[id^="p-"]').forEach(function(s){s.classList.add('hide')});
   var el=document.getElementById('p-'+page); if(el) el.classList.remove('hide');
@@ -36,7 +36,7 @@ function go(page){
   document.getElementById('side').classList.remove('open');
   window.scrollTo(0,0);
   var R={dash:renderDash,newenergy:renderNewEnergy,transport:renderTransport,ride:renderRide,
-    sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin,expense:renderExpense,approval:renderApproval,opportunity:renderOpp,people:renderPeople};
+    sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin,expense:renderExpense,approval:renderApproval,opportunity:renderOpp,people:renderPeople,projects:projListRender};
   if(R[page]) R[page]();
   /* v5.0：为每个功能页刷新关键信息摘要条 */
   if(typeof renderDigest==='function') renderDigest(page);
@@ -190,8 +190,8 @@ function userBadgeText(){
 }
 function allowedPages(){
   /* 管理层 / 管理员：全部功能 + 管理后台；业务人员：聚焦本人业务平台 */
-  if(isManager()) return ['dash','newenergy','transport','ride','sales','contract','fin','run','staff','people','map','detail','admin','expense','approval','opportunity'];
-  return ['run','contract','staff','people','detail','map','expense'];
+  if(isManager()) return ['dash','newenergy','transport','ride','sales','contract','fin','run','staff','people','projects','map','detail','admin','expense','approval','opportunity'];
+  return ['run','contract','staff','people','projects','detail','map','expense'];
 }
 /* ===== 业务员数据隔离：除自身外不可查看其余人员的项目/客户/报销 ===== */
 function visibleProjects(){
@@ -655,6 +655,7 @@ function renderExpense(){
     kpi('待审批',pending,'单','审批中',pending?'warn':'ok')+
     kpi('已通过',approved,'单','', 'ok')+
     kpi('待报销金额',yuan(pendReimb),'','报销类待审合计','warn');
+  renderExpStats();
   document.getElementById('expList').innerHTML = list.length? list.map(function(a){
     return '<div class="li" style="cursor:pointer" onclick="openAppView(\''+a.id+'\')">'+
       '<div class="t"><span class="apptag">'+appTypeIcon(a.type)+' '+appTypeLabel(a.type)+'</span> '+esc(a.title)+
@@ -664,6 +665,44 @@ function renderExpense(){
       (a.status==='pending'?'<button class="btn sm" onclick="event.stopPropagation();openAppView(\''+a.id+'\')">查看</button>':'')+
       '</div>';
   }).join('') : '<div class="note">暂无申请。点击右上角提交出差 / 招待 / 报销申请。</div>';
+}
+/* 报销统计仪表盘（参考分贝通/用友报销）：月度趋势 + 类型分布 + 待审/已审对比 + 申请人排名 */
+function renderExpStats(){
+  if(!document.getElementById('expTrend')) return;
+  /* 数据范围：管理层看全公司，业务员看本人 */
+  var scope = isManager()? (DB.applications||[]) : (DB.applications||[]).filter(function(a){return a.applicant===CUR_USER.username;});
+  var approvedScope=scope.filter(function(a){return a.status==='approved';});
+  /* 月度趋势：近 6 月已通过报销金额 */
+  var months=[]; for(var i=5;i>=0;i--){ var d=new Date(); d.setMonth(d.getMonth()-i); months.push(d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)); }
+  var trendData=months.map(function(m){
+    return scope.filter(function(a){return a.status==='approved' && (a.submitAt||'').slice(0,7)===m;})
+      .reduce(function(s,a){return s+appAmount(a);},0);
+  });
+  document.getElementById('expTrend').innerHTML=bars(trendData, months.map(function(m){return m.slice(2)}), '#ff8c1a', '元');
+  /* 按费用类型分布（报销 items 的 category + 出差/招待分类） */
+  var catMap={};
+  approvedScope.forEach(function(a){
+    if(a.type==='reimb'){ (a.items||[]).forEach(function(it){ var c=it.category||it.type||'其他'; catMap[c]=(catMap[c]||0)+(it.amount||0); }); }
+    else { var c=a.type==='trip'?'差旅费':'招待费'; catMap[c]=(catMap[c]||0)+(a.amount||0); }
+  });
+  var catArr=Object.keys(catMap).map(function(k){return [k,catMap[k]]}).sort(function(a,b){return b[1]-a[1]});
+  document.getElementById('expCat').innerHTML = catArr.length? hbars(catArr,'#ffb347') : '<div class="note">暂无已通过报销数据。</div>';
+  /* 待审 / 已审 金额对比 */
+  var pendAmt=scope.filter(function(a){return a.status==='pending';}).reduce(function(s,a){return s+appAmount(a);},0);
+  var doneAmt=approvedScope.reduce(function(s,a){return s+appAmount(a);},0);
+  document.getElementById('expPending').innerHTML = donut(Math.round(doneAmt/(pendAmt+doneAmt)*100||0), '已审占比', yuan(doneAmt), '#19c37d') +
+    '<div class="legend" style="margin-top:8px"><span><i style="background:#19c37d"></i>已审 '+yuan(doneAmt)+'</span><span><i style="background:#ffb347"></i>待审 '+yuan(pendAmt)+'</span></div>';
+  /* 申请人金额排名（仅管理层有意义；业务员显本人） */
+  var rankTitle=document.getElementById('expRankTitle');
+  if(rankTitle) rankTitle.textContent = isManager()? '申请人金额排名（全公司）' : '我的报销金额';
+  var rankMap={};
+  scope.filter(function(a){return a.status==='approved';}).forEach(function(a){
+    rankMap[a.applicantName||a.applicant]=(rankMap[a.applicantName||a.applicant]||0)+appAmount(a);
+  });
+  var rankArr=Object.keys(rankMap).map(function(k){return [k,rankMap[k]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,8);
+  document.getElementById('expRank').innerHTML = rankArr.length? tbl('<th>排名</th><th>申请人</th><th class="n">已审金额(元)</th>',
+    rankArr.map(function(r,i){return '<tr><td class="n">'+(i+1)+'</td><td class="nm">'+esc(r[0])+'</td><td class="n">'+fmt(r[1])+'</td></tr>'}).join(''))
+    : '<div class="note">暂无已通过报销。</div>';
 }
 function openTripApply(){
   var html=

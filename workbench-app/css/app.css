@@ -796,6 +796,39 @@ input::placeholder,textarea::placeholder{color:#4d5c78}
 .receiptView{margin:6px 0}
 .receiptView img{max-width:100%;max-height:260px;border-radius:6px;border:1px solid var(--bd)}
 
+/* ============ 项目组合总览卡片 ============ */
+.projcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.projcard{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;overflow:hidden}
+.projcard:hover{border-color:var(--cy);transform:translateY(-2px)}
+.projcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cy)}
+.pc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pc-line{font-size:10px;color:#1a1006;padding:2px 8px;border-radius:4px;font-weight:600}
+.pc-health{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600}
+.pc-health.ok{background:rgba(25,195,125,.15);color:#19c37d}
+.pc-health.wn{background:rgba(255,179,71,.15);color:#ffb347}
+.pc-health.up{background:rgba(255,80,80,.15);color:#ff5050}
+.pc-name{font-size:15px;font-weight:700;margin-bottom:3px;color:var(--txt)}
+.pc-meta{font-size:11px;color:var(--txt3);margin-bottom:10px}
+.pc-prog{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.pc-prog .bar{flex:1;height:7px;background:var(--bg2);border-radius:4px;overflow:hidden}
+.pc-prog .bar i{display:block;height:100%;background:linear-gradient(90deg,#ff8c1a,#ffb347);border-radius:4px}
+.pc-prog b{font-size:13px;color:var(--cy);min-width:36px;text-align:right}
+.pc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px}
+.pc-grid>div{display:flex;flex-direction:column;gap:1px}
+.pc-grid span{color:var(--txt3);font-size:10px}
+.pc-grid b{font-size:13px;color:var(--txt);font-weight:600}
+.pc-grid small{font-size:10px;color:var(--txt3)}
+.pc-cli{font-size:11px!important;font-weight:500}
+.pc-risk{margin-top:10px;font-size:11px;line-height:1.5}
+.pc-risk.ok{color:#19c37d}
+.projcard:hover .pc-risk .tag{filter:brightness(1.1)}
+
+/* 项目健康度评分卡 */
+.healthcard{margin-bottom:14px}
+.healthgauge{display:flex;align-items:center;justify-content:center;min-width:150px}
+.healthgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;flex:1}
+@media(max-width:520px){ .healthcard .row{flex-direction:column} .healthgauge{min-width:auto} }
+
 /* ============ 移动端适配（iOS / 鸿蒙 / 安卓） ============ */
 html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 button,.btn,.chip,.nav,.b,.seg button{min-height:40px}
@@ -829,6 +862,8 @@ button,.btn,.chip,.nav,.b,.seg button{min-height:40px}
   .card.scroll,.scroll{overflow-x:auto}
   /* KPI 网格窄屏 2 列 */
   .grid.kpis{grid-template-columns:repeat(2,1fr)}
+  /* 项目卡片窄屏单列 */
+  .projcards{grid-template-columns:1fr}
 }
 @media(max-width:380px){
   .grid.kpis{grid-template-columns:1fr}

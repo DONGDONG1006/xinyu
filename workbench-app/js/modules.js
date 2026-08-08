@@ -348,7 +348,28 @@ function dtOverview(){
     ['环评批复','已办结','2026-03-10','陈工'],['水土保持','已办结','2026-03-22','陈工'],
     ['接入系统','办理中','—','李工'],['消纳指标','卡点','—','张总'],['施工许可','待启动','—','陈工']];
   var rs=DB.run.filter(function(r){return r.project===curProject});
-  return '<div class="sect">手续办理清单</div><div class="card scroll">'+
+  /* 项目健康度评分卡（参考成熟平台项目健康度） */
+  var nodes=DB.nodes[curProject]||[];
+  var doneN=nodes.filter(function(n){return n.status==='已完成'}).length;
+  var lateN=nodes.filter(function(n){return n.status==='延期'||n.status==='受阻'}).length;
+  var nodeRate=nodes.length? Math.round(doneN/nodes.length*100) : 0;
+  var h=projHealth(p);
+  var cs=DB.contracts.filter(function(c){return c.project===curProject});
+  var recvAmt=cs.filter(function(c){return c.dir==='收'}).reduce(function(a,c){return a+(c.settled||0)},0);
+  var ctAmt=cs.filter(function(c){return c.dir==='收'}).reduce(function(a,c){return a+c.amount},0);
+  var recvRate=ctAmt? Math.round(recvAmt/ctAmt*100) : 0;
+  var healthCard='<div class="card healthcard"><div class="row" style="gap:16px;align-items:stretch">'+
+    '<div class="healthgauge">'+gauge(h,'健康度',h+'分',h>=70?'#19c37d':h>=40?'#ffb347':'#ff5050')+'</div>'+
+    '<div class="healthgrid">'+
+    kpi('项目进度',p.progress||0,'%','推进完成度',((p.progress||0)>=70?'ok':(p.progress||0)>=40?'':'warn'))+
+    kpi('节点完成率',nodeRate,'%','完成 '+doneN+'/'+(nodes.length||0)+(lateN?(' · 延期 '+lateN):''),lateN?'warn':'ok')+
+    kpi('回款率',recvRate,'%','已回款 '+fmt(recvAmt)+' 万',recvRate>=60?'ok':'warn')+
+    kpi('风险项',(p.risk||[]).length,'项',(p.risk||[]).length?('卡点：'+(p.risk||[]).join('、')):'无风险',(p.risk||[]).length?'warn':'ok')+
+    '</div></div>'+
+    '<div class="note" style="margin-top:8px"><b>健康度算法：</b>项目进度 40% + 节点完成率 40% − 风险项扣分（每项 8 分）。'+
+    (h>=70?'项目整体健康，按计划推进。':h>=40?'项目需关注，存在影响进度的因素，建议加强跑动。':'项目处于预警状态，卡点需立即协调升级处理。')+'</div></div>';
+  return healthCard+
+    '<div class="sect">手续办理清单</div><div class="card scroll">'+
     tbl('<th>手续事项</th><th>状态</th><th>办结日期</th><th>责任人</th><th></th>',
       procs.map(function(x){
         return '<tr><td class="nm">'+x[0]+'</td>'+
@@ -514,6 +535,64 @@ function delNode(i){
 
 /* ---------- 关键人 · 联系人 ---------- */
 function pplList(){ if(!DB.people[curProject]) DB.people[curProject]=[]; return DB.people[curProject]; }
+
+/* ===== 项目组合总览（参考飞书/钉钉项目管理） ===== */
+var PJ_LINE='all';
+function pjLineSet(f){ PJ_LINE=f; document.querySelectorAll('#pjLineFilter button').forEach(function(b){b.classList.toggle('on',b.dataset.f===f);}); projListRender(); }
+function projHealth(p){
+  var nodes=DB.nodes[p.id]||[];
+  var done=nodes.filter(function(n){return n.status==='已完成'}).length;
+  var nodeRate=nodes.length? done/nodes.length*100 : (p.progress||0);
+  var riskPenalty=(p.risk||[]).length*8;
+  var score=Math.round((p.progress||0)*0.4 + nodeRate*0.4 - riskPenalty);
+  return Math.max(0,Math.min(100,score));
+}
+function projListRender(){
+  if(!document.getElementById('pjGrid')) return;
+  var ps=visibleProjects();
+  var kwEl=document.getElementById('pjSearch');
+  var kw=(kwEl?kwEl.value:'').trim().toLowerCase();
+  var list=ps.filter(function(p){
+    if(PJ_LINE!=='all' && p.line.indexOf(PJ_LINE)<0) return false;
+    if(kw && (p.name.toLowerCase().indexOf(kw)<0 && (p.client||'').toLowerCase().indexOf(kw)<0)) return false;
+    return true;
+  });
+  /* KPI */
+  var onTrack=list.filter(function(p){return (p.progress||0)<100 && !(p.risk||[]).length}).length;
+  var atRisk=list.filter(function(p){return (p.risk||[]).length>0}).length;
+  var done=list.filter(function(p){return (p.progress||0)>=100}).length;
+  var avgProg=list.length? Math.round(list.reduce(function(a,p){return a+(p.progress||0)},0)/list.length) : 0;
+  document.getElementById('pjKpi').innerHTML=
+    kpi('在管项目',list.length,'个','可见项目合计')+
+    kpi('平均进度',avgProg,'%','加权推进度','ok')+
+    kpi('风险项目',atRisk,'个','有卡点/风险项',atRisk?'warn':'ok')+
+    kpi('已完工',done,'个','进度 100%','ok');
+  /* 卡片 */
+  var lineColor={新能源:'#ff8c1a',大交通:'#ffb347',网约车:'#ff6b35',车辆销售:'#ffd98a'};
+  document.getElementById('pjGrid').innerHTML = list.length? '<div class="projcards">'+
+    list.map(function(p){
+      var nodes=DB.nodes[p.id]||[];
+      var doneN=nodes.filter(function(n){return n.status==='已完成'}).length;
+      var lateN=nodes.filter(function(n){return n.status==='延期'||n.status==='受阻'}).length;
+      var h=projHealth(p);
+      var hCls=h>=70?'ok':h>=40?'wn':'up';
+      var hTxt=h>=70?'健康':h>=40?'关注':'预警';
+      return '<div class="projcard" onclick="goDetail(\''+p.id+'\')">'+
+        '<div class="pc-top"><span class="pc-line" style="background:'+(lineColor[p.line]||'#888')+'">'+esc(p.line)+'</span>'+
+        '<span class="pc-health '+hCls+'" title="健康度 '+h+'">'+hTxt+' '+h+'</span></div>'+
+        '<div class="pc-name">'+esc(p.name)+'</div>'+
+        '<div class="pc-meta">'+esc(p.type)+' · '+esc(p.stage)+' · 负责人 '+esc(p.owner||'—')+'</div>'+
+        '<div class="pc-prog"><div class="bar"><i style="width:'+(p.progress||0)+'%"></i></div><b>'+(p.progress||0)+'%</b></div>'+
+        '<div class="pc-grid">'+
+          '<div><span>关键节点</span><b>'+(nodes.length||'—')+'</b><small>完成 '+doneN+(lateN?(' · 延期 '+lateN):'')+'</small></div>'+
+          '<div><span>投资(万)</span><b>'+(p.invTotal?fmt(p.invTotal):'—')+'</b><small>已投 '+fmt(p.invDone)+'</small></div>'+
+          '<div><span>客户</span><b class="pc-cli">'+esc((p.client||'—').slice(0,10))+'</b><small>计划 '+esc(p.plan||'—')+'</small></div>'+
+          '</div>'+
+        ((p.risk||[]).length?'<div class="pc-risk">风险：'+(p.risk||[]).map(function(r){return tag(r,'t-red')}).join(' ')+'</div>':'<div class="pc-risk ok">无风险项</div>')+
+        '</div>';
+    }).join('')+'</div>'
+    : '<div class="note">暂无符合条件的项目。</div>';
+}
 
 /* ===== 关键人独立模块：跨项目汇总 + 与项目/合同/开票联动 ===== */
 var PPL_FILTER='all';
