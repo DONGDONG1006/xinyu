@@ -90,6 +90,7 @@
       <div class="nav" data-page="fin"><span class="ic">¥</span>业务财务</div>
       <div class="nav" data-page="run"><span class="ic">➤</span>跑动作战台<span class="badge" id="navRun">0</span></div>
       <div class="nav" data-page="staff"><span class="ic">⚑</span>业务人员</div>
+      <div class="nav" data-page="people"><span class="ic">☻</span>关键人管理</div>
       <div class="nav" data-page="opportunity"><span class="ic">✦</span>机会商机</div>
       <div class="nav" data-page="expense"><span class="ic">¥</span>费用报销</div>
       <div class="nav" data-page="approval"><span class="ic">✓</span>审批中心</div>
@@ -270,6 +271,7 @@
           <button data-t="cash">资金</button>
           <button data-t="tax">税务预算</button>
         </div>
+        <button class="btn" onclick="exportFinVoucher()">⬇ 一键导出报账单据</button>
       </div>
       <div class="digest" id="dg-fin"></div>
       <div class="grid kpis" id="finKpi"></div>
@@ -328,6 +330,22 @@
 
       <div class="sect" style="margin-top:18px">人员绩效排名 <span class="tip">合同额(收) / 业务费用 · 效率比越高越优</span></div>
       <div class="card"><div id="stPerf"></div></div>
+    </section>
+
+    <!-- ============ 关键人管理（独立模块，与项目/开票联动） ============ -->
+    <section id="p-people" class="hide">
+      <div class="ptitle"><h1>关键人管理</h1><span class="sub">项目负责人独立台账 · 与项目 / 合同 / 开票联动</span>
+        <div class="spacer"></div>
+        <span class="seg" id="pplFilter">
+          <button class="on" data-f="all" onclick="pplFilterSet('all')">全部</button>
+          <button data-f="决策" onclick="pplFilterSet('决策')">决策层</button>
+          <button data-f="影响" onclick="pplFilterSet('影响')">影响层</button>
+          <button data-f="执行" onclick="pplFilterSet('执行')">执行层</button>
+        </span>
+      </div>
+      <div class="grid kpis" id="pplKpi"></div>
+      <div class="sect">关键人台账 <span class="tip">点击行直达所属项目 · 含关联合同额 / 开票额</span></div>
+      <div class="card scroll"><div id="pplList"></div></div>
     </section>
 
     <!-- ============ 机会 / 商机（CRM） ============ -->
@@ -456,6 +474,7 @@
     <div class="b" data-page="contract"><span class="ei">✎</span>合同</div>
     <div class="b" data-page="fin"><span class="ei">¥</span>财务</div>
     <div class="b" data-page="staff"><span class="ei">⚑</span>人员</div>
+    <div class="b" data-page="people"><span class="ei">☻</span>关键人</div>
     <div class="b" data-page="map"><span class="ei">⊕</span>地图</div>
     <div class="b" data-page="detail"><span class="ei">▦</span>项目</div>
     <div class="b" data-page="expense"><span class="ei">¥</span>费用</div>

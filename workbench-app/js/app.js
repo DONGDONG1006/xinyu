@@ -26,7 +26,7 @@ function kpi(k,v,unit,d,cls,onclick){
 
 /* ---------------- 导航 ---------------- */
 var PAGE_SUB={dash:'经营驾驶舱',newenergy:'新能源项目',transport:'大交通机电',ride:'网约车平台',
-  sales:'车辆销售',contract:'合同管理',fin:'业务财务',run:'跑动作战台',staff:'业务人员管理',map:'项目地图',detail:'项目详情',admin:'平台管理',expense:'费用报销',approval:'审批中心',opportunity:'机会商机'};
+  sales:'车辆销售',contract:'合同管理',fin:'业务财务',run:'跑动作战台',staff:'业务人员管理',map:'项目地图',detail:'项目详情',admin:'平台管理',expense:'费用报销',approval:'审批中心',opportunity:'机会商机',people:'关键人管理'};
 function go(page){
   document.querySelectorAll('section[id^="p-"]').forEach(function(s){s.classList.add('hide')});
   var el=document.getElementById('p-'+page); if(el) el.classList.remove('hide');
@@ -36,7 +36,7 @@ function go(page){
   document.getElementById('side').classList.remove('open');
   window.scrollTo(0,0);
   var R={dash:renderDash,newenergy:renderNewEnergy,transport:renderTransport,ride:renderRide,
-    sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin,expense:renderExpense,approval:renderApproval,opportunity:renderOpp};
+    sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin,expense:renderExpense,approval:renderApproval,opportunity:renderOpp,people:renderPeople};
   if(R[page]) R[page]();
   /* v5.0：为每个功能页刷新关键信息摘要条 */
   if(typeof renderDigest==='function') renderDigest(page);
@@ -44,9 +44,9 @@ function go(page){
 function toggleNav(){ document.getElementById('side').classList.toggle('open'); }
 function goDetail(id){ curProject=id; go('detail'); }
 function renderProjNav(){
-  document.getElementById('projNav').innerHTML = DB.projects.map(function(p){
+  document.getElementById('projNav').innerHTML = visibleProjects().map(function(p){
     return '<div class="nav sm" onclick="goDetail(\''+p.id+'\')">'+esc(p.name)+'</div>';
-  }).join('');
+  }).join('') || '<div class="nav sm" style="color:var(--txt3)">暂无可见项目</div>';
 }
 
 /* ============ 账号 / 密码登录 + 角色权限 ============ */
@@ -73,7 +73,7 @@ function pushAudit(act){
 function bootAuth(){
   var s=null; try{ s=localStorage.getItem('xy_session'); }catch(e){}
   if(s){ try{ var u=JSON.parse(s); var rec=(DB.users||[]).filter(function(x){return x.id===u.id;})[0];
-    if(rec && !rec.disabled){ CUR_USER={id:rec.id,username:rec.username,name:rec.name,role:rec.role}; return true; } }catch(e){} }
+    if(rec && !rec.disabled){ CUR_USER={id:rec.id,username:rec.username,name:rec.name,role:rec.role,field:rec.field||'综合'}; return true; } }catch(e){} }
   return false;
 }
 /* ============ 公司 Logo（甘肃新煜科技） ============
@@ -149,7 +149,7 @@ function submitLogin(){
   completeLogin(rec);
 }
 function completeLogin(rec){
-  CUR_USER={id:rec.id,username:rec.username,name:rec.name,role:rec.role};
+  CUR_USER={id:rec.id,username:rec.username,name:rec.name,role:rec.role,field:rec.field||'综合'};
   try{ localStorage.setItem('xy_session',JSON.stringify({id:rec.id})); }catch(e){}
   pushAudit('登录');
   hideLoginGate(); applyAuthUI(); connectSync(); go(landingPage());
@@ -182,10 +182,31 @@ function submitSetPwd(){
   completeLogin(rec);
 }
 function platformMode(){ return isManager()? '管理层平台' : (CUR_USER? '业务人员平台':'未登录'); }
+function userBadgeText(){
+  if(!CUR_USER) return '';
+  /* 管理层显示角色；业务员显示所属行业，便于在界面中明确其负责范围 */
+  var tag=isManager()? roleName(CUR_USER.role) : (CUR_USER.field||'业务');
+  return CUR_USER.name+' · '+tag+' · '+platformMode();
+}
 function allowedPages(){
   /* 管理层 / 管理员：全部功能 + 管理后台；业务人员：聚焦本人业务平台 */
-  if(isManager()) return ['dash','newenergy','transport','ride','sales','contract','fin','run','staff','map','detail','admin','expense','approval'];
-  return ['run','contract','staff','detail','map','expense'];
+  if(isManager()) return ['dash','newenergy','transport','ride','sales','contract','fin','run','staff','people','map','detail','admin','expense','approval','opportunity'];
+  return ['run','contract','staff','people','detail','map','expense'];
+}
+/* ===== 业务员数据隔离：除自身外不可查看其余人员的项目/客户/报销 ===== */
+function visibleProjects(){
+  var ps=DB.projects||[];
+  if(isManager()) return ps;
+  /* 业务员仅可见自己创建的项目（createdBy 命中当前账号 id） */
+  var uid=CUR_USER&&CUR_USER.id;
+  return ps.filter(function(p){ return !p.createdBy || p.createdBy===uid; });
+}
+function visibleOpps(){
+  var ops=DB.opportunities||[];
+  if(isManager()) return ops;
+  var vp=visibleProjects().map(function(p){return p.id;});
+  /* 业务员可见：转化到本人项目的商机 + 本人创建的商机 */
+  return ops.filter(function(o){ return (o.projectId&&vp.indexOf(o.projectId)>=0) || (o.createdBy&&o.createdBy===(CUR_USER&&CUR_USER.id)); });
 }
 function applyRoleUI(){
   var ap=allowedPages();
@@ -199,7 +220,7 @@ function applyAuthUI(){
   applyRoleUI();
   ['usrBadge','usrBadgeD'].forEach(function(id){
     var b=document.getElementById(id);
-    if(b){ if(CUR_USER){ b.innerHTML='<span class="usr" onclick="if(confirm(\'退出登录？\'))logoutAll()">'+esc(CUR_USER.name)+' · '+roleName(CUR_USER.role)+' · '+platformMode()+' ▾</span>'; } else { b.innerHTML=''; } }
+    if(b){ if(CUR_USER){ b.innerHTML='<span class="usr" onclick="if(confirm(\'退出登录？\'))logoutAll()">'+esc(userBadgeText())+' ▾</span>'; } else { b.innerHTML=''; } }
   });
   renderPresence();
 }
@@ -229,15 +250,17 @@ function renderAdmin(){
   if(!requireAdmin('访问管理后台')){ if(!isAdmin()) go('dash'); return; }
   var rows=(DB.users||[]).map(function(u){
     var me=(CUR_USER&&u.id===CUR_USER.id);
-    var acts='<button class="btn sm" onclick="openResetPwd(\''+u.id+'\')">改密</button> '+
+    var acts='<button class="btn sm" onclick="openUserEdit(\''+u.id+'\')">编辑</button> '+
+      '<button class="btn sm" onclick="openResetPwd(\''+u.id+'\')">改密</button> '+
       '<button class="btn sm '+(u.disabled?'':'dgr')+'" onclick="toggleUser(\''+u.id+'\')">'+(u.disabled?'启用':'禁用')+'</button> ';
     acts += me ? '<span class="tag ok">当前</span>' : '<button class="btn sm dgr" onclick="deleteUser(\''+u.id+'\')">删除</button>';
     return '<tr><td>'+esc(u.username)+'</td><td>'+esc(u.name)+'</td>'+
       '<td><span class="tag '+(u.role==='admin'?'pur':u.role==='manager'?'cy':'gy')+'">'+roleName(u.role)+'</span></td>'+
+      '<td>'+tag(u.field||'综合', 't-cy')+'</td>'+
       '<td>'+(u.disabled?'<span class="tag dgr">已禁用</span>':'<span class="tag ok">正常</span>')+'</td>'+
       '<td>'+esc(u.createdAt||'')+'</td><td class="act">'+acts+'</td></tr>';
   }).join('');
-  document.getElementById('admUsers').innerHTML='<table class="utbl"><thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>状态</th><th>创建</th><th>操作</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  document.getElementById('admUsers').innerHTML='<table class="utbl"><thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>行业</th><th>状态</th><th>创建</th><th>操作</th></tr></thead><tbody>'+rows+'</tbody></table>';
 
   var perms=[['经营数据查看','view','view','view'],['项目 / 合同 增改','edit','edit','edit'],['项目 / 合同 删除','—','—','del'],
     ['跑动 / 费用 填报','add','add','add'],['用户与账号管理','—','—','user'],['系统设置 / 目标','—','—','sys'],['数据导出导入 / 清库','—','—','data']];
@@ -282,19 +305,31 @@ function renderAdmin(){
 }
 function openUserAdd(){
   if(!requireAdmin('新增账号')) return;
-  var html=fld('登录账号','uaUser','')+fld('姓名','uaName','')+fldSel('角色','uaRole',['admin','manager','member'])+
+  var html=fld('登录账号','uaUser','')+fld('姓名','uaName','')+
+    '<div class="f2">'+fldSel('角色','uaRole',['admin','manager','member'])+fldSel('所属行业','uaField',['新能源','大交通','网约车','车辆销售','综合'],'新能源')+'</div>'+
     '<label class="ckrow"><input type="checkbox" name="uaForce" checked> 开通后由本人首次登录设置密码（不预设初始密码）</label>'+
     '<div id="uaPwdWrap">'+fld('初始密码（未勾选时生效）','uaPwd','')+'</div>'+
-    '<div class="note">成员 / 业务人员账号由管理员在此开通使用权限；勾选后，本人首次登录时自行设置密码，更安全。</div>';
+    '<div class="note">成员 / 业务人员账号由管理员在此开通使用权限；所属行业用于在管理层及业务员界面中显示与归类。勾选后，本人首次登录时自行设置密码，更安全。</div>';
   openDrawer('＋ 开通账号',html,function(){
     var un=_v('uaUser'); if(!un){toast('请填写登录账号');return;}
     if((DB.users||[]).filter(function(x){return x.username===un;}).length){ toast('该账号已存在'); return; }
     var force=!!(document.querySelector('#dbody [name="uaForce"]')||{}).checked;
     var pw=force?null:(_v('uaPwd')||'123456');
     DB.users=DB.users||[];
-    DB.users.push({id:uid('u'),username:un,name:_v('uaName')||un,role:_v('uaRole')||'member',pwd:pw?hashPwd(pw):null,mustSetPwd:!!force,disabled:false,createdAt:todayStr()});
+    DB.users.push({id:uid('u'),username:un,name:_v('uaName')||un,role:_v('uaRole')||'member',field:_v('uaField')||'综合',pwd:pw?hashPwd(pw):null,mustSetPwd:!!force,disabled:false,createdAt:todayStr()});
     saveDB(); closeDrawer(); renderAdmin(); toast(force?('账号已开通：'+un+'（请通知本人首次登录设置密码）'):('账号已创建：'+un+'（初始密码 '+pw+'）'));
   },{priText:'开通账号'});
+}
+function openUserEdit(id){
+  if(!requireAdmin('编辑账号')) return;
+  var u=(DB.users||[]).filter(function(x){return x.id===id})[0]; if(!u) return;
+  var html=fld('姓名','ueName',u.name)+
+    '<div class="f2">'+fldSel('角色','ueRole',['admin','manager','member'],u.role)+fldSel('所属行业','ueField',['新能源','大交通','网约车','车辆销售','综合'],u.field||'综合')+'</div>'+
+    '<div class="note">修改角色或所属行业；如需改密码请用「改密」。</div>';
+  openDrawer('编辑账号 · '+u.username,html,function(){
+    u.name=_v('ueName')||u.name; u.role=_v('ueRole'); u.field=_v('ueField')||'综合';
+    saveDB(); closeDrawer(); renderAdmin(); toast('账号信息已更新：'+u.username);
+  },{priText:'保存'});
 }
 function openResetPwd(id){
   if(!requireAdmin('重置密码')) return;
@@ -402,7 +437,7 @@ function taskForm(pre){
   pre=pre||{};
   return fld('事项','tfTitle','如：对接省发改委推动消纳指标',pre.title)+
     '<div class="f2">'+fld('责任人','tfOwner','张总',pre.owner)+fld('完成期限','tfDue','2026-08-20',pre.due)+'</div>'+
-    fldSel('关联项目','tfProj',DB.projects.map(function(p){return p.name}),pre.proj)+
+    fldSel('关联项目','tfProj',visibleProjects().map(function(p){return p.name}),pre.proj)+
     '<div class="field"><label>紧急度</label>'+chips('1',['常规','重要','紧急·董事长关注'],pre.level||'重要')+'</div>'+
     fldArea('要求与背景','tfNote','说明卡点、已尝试的路径、需要的资源',pre.note);
 }
@@ -633,18 +668,21 @@ function renderExpense(){
 function openTripApply(){
   var html=
     '<div class="f2">'+fldSel('业务线','trLine',['新能源','大交通','网约车','车辆销售'],'新能源')+
-      fldSel('关联项目','trProj',['（不关联）'].concat(DB.projects.map(function(p){return p.name})),'（不关联）')+'</div>'+
+      fldSel('关联项目','trProj',['（不关联）'].concat(visibleProjects().map(function(p){return p.name})),'（不关联）')+'</div>'+
     fld('出差事由','trReason','如：临港项目接入评审对接')+
     '<div class="f2">'+fld('目的地','trDest','张掖')+fld('交通工具','trTrans','高铁')+'</div>'+
     '<div class="f2">'+fld('开始日期','trStart',todayStr())+fld('结束日期','trEnd',todayStr())+'</div>'+
     '<div class="sect" style="margin:8px 0 4px">预估费用（元）</div>'+
     '<div class="f2">'+fld('交通费','trT',0)+fld('住宿费','trH',0)+'</div>'+
     '<div class="f2">'+fld('补贴/其他','trA',0)+fld('预估合计','trSum','提交后生成')+'</div>'+
-    fldArea('备注','trNote','行程安排 / 需协调资源');
+    fldArea('备注','trNote','行程安排 / 需协调资源')+
+    '<div class="sect" style="margin:8px 0 4px">支付截图 / 凭证（可选）</div>'+
+    '<input type="file" accept="image/*" onchange="pickReceiptImg(this)" style="font-size:12px">'+
+    '<input type="hidden" id="receiptHold"><div id="receiptPrev" class="receiptPrev"></div>';
   openDrawer('出差申请',html,function(){
     var t=Number(_v('trT'))||0,h=Number(_v('trH'))||0,a=Number(_v('trA'))||0,total=t+h+a;
     if(!_v('trReason')){ toast('请填写出差事由'); return; }
-    var pn=_v('trProj'), pid=(DB.projects.filter(function(p){return p.name===pn})[0]||{}).id||'';
+    var pn=_v('trProj'), pid=(visibleProjects().filter(function(p){return p.name===pn})[0]||{}).id||'';
     var sd=_v('trStart'),ed=_v('trEnd');
     var days=Math.max(0,Math.round((new Date(ed)-new Date(sd))/864e5))+(sd&&ed?1:0);
     DB.applications=DB.applications||[];
@@ -652,27 +690,30 @@ function openTripApply(){
       applicant:CUR_USER.username,applicantName:CUR_USER.name,line:_v('trLine'),projectId:pid,
       status:'pending',createdAt:todayStr(),submitAt:todayStr(),
       dest:_v('trDest'),reason:_v('trReason'),startDate:sd,endDate:ed,days:days,transport:_v('trTrans'),
-      estTransport:t,estHotel:h,estAllowance:a,amount:total,note:_v('trNote')});
+      estTransport:t,estHotel:h,estAllowance:a,amount:total,note:_v('trNote'),receiptImg:_v('receiptHold')||''});
     saveDB(); closeDrawer(); toast('出差申请已提交，待审批'); renderExpense();
   },{priText:'提交申请'});
 }
 function openEntApply(){
   var html=
     '<div class="f2">'+fldSel('业务线','enLine',['新能源','大交通','网约车','车辆销售'],'新能源')+
-      fldSel('关联项目','enProj',['（不关联）'].concat(DB.projects.map(function(p){return p.name})),'（不关联）')+'</div>'+
+      fldSel('关联项目','enProj',['（不关联）'].concat(visibleProjects().map(function(p){return p.name})),'（不关联）')+'</div>'+
     fld('招待对象','enGuest','如：省发改委能源处')+
     fld('招待事由','enReason','如：项目前期手续协调推进')+
     '<div class="f2">'+fld('人数','enHc',1)+fld('预估费用(元)','enAmt',0)+'</div>'+
-    fldArea('备注','enNote','地点 / 标准说明');
+    fldArea('备注','enNote','地点 / 标准说明')+
+    '<div class="sect" style="margin:8px 0 4px">支付截图 / 凭证（可选）</div>'+
+    '<input type="file" accept="image/*" onchange="pickReceiptImg(this)" style="font-size:12px">'+
+    '<input type="hidden" id="receiptHold"><div id="receiptPrev" class="receiptPrev"></div>';
   openDrawer('招待申请',html,function(){
     var amt=Number(_v('enAmt'))||0;
     if(!_v('enGuest')){ toast('请填写招待对象'); return; }
-    var pn=_v('enProj'), pid=(DB.projects.filter(function(p){return p.name===pn})[0]||{}).id||'';
+    var pn=_v('enProj'), pid=(visibleProjects().filter(function(p){return p.name===pn})[0]||{}).id||'';
     DB.applications=DB.applications||[];
     DB.applications.unshift({id:uid('ap'),type:'ent',title:_v('enReason')||('招待：'+_v('enGuest')),
       applicant:CUR_USER.username,applicantName:CUR_USER.name,line:_v('enLine'),projectId:pid,
       status:'pending',createdAt:todayStr(),submitAt:todayStr(),
-      guest:_v('enGuest'),reason:_v('enReason'),headcount:Number(_v('enHc'))||1,estAmount:amt,amount:amt,note:_v('enNote')});
+      guest:_v('enGuest'),reason:_v('enReason'),headcount:Number(_v('enHc'))||1,estAmount:amt,amount:amt,note:_v('enNote'),receiptImg:_v('receiptHold')||''});
     saveDB(); closeDrawer(); toast('招待申请已提交，待审批'); renderExpense();
   },{priText:'提交申请'});
 }
@@ -682,25 +723,28 @@ function openReimbApply(){
   var html=
     '<div class="note" style="margin-bottom:8px">报销可关联已通过的出差 / 招待申请（可选）。按发票逐张录入，系统自动核算合计，支持<b>发票查验</b>与<b>一键打印报销单</b>。</div>'+
     '<div class="f2">'+fldSel('业务线','rmLine',['新能源','大交通','网约车','车辆销售'],'新能源')+
-      fldSel('关联项目','rmProj',['（不关联）'].concat(DB.projects.map(function(p){return p.name})),'（不关联）')+'</div>'+
+      fldSel('关联项目','rmProj',['（不关联）'].concat(visibleProjects().map(function(p){return p.name})),'（不关联）')+'</div>'+
     fldSel('关联申请','rmRel',relOpts,'（无）')+
     '<div class="sect" style="margin:8px 0 4px">发票明细 <button class="btn sm pri" onclick="addInvRow()" style="margin-left:8px">＋ 添加发票</button></div>'+
     '<div id="rmItems" class="invlst"></div>'+
     '<div class="rflex"><span>借款 / 预付款抵扣（元）</span>'+fld('','rmAdv',0)+'</div>'+
     '<div class="rflex"><span>报销合计（元）</span><input id="rmSum" class="rof" readonly value="0"></div>'+
-    fldArea('说明','rmNote','费用说明 / 出差事由');
+    fldArea('说明','rmNote','费用说明 / 出差事由')+
+    '<div class="sect" style="margin:8px 0 4px">支付截图 / 凭证（可选）</div>'+
+    '<input type="file" accept="image/*" onchange="pickReceiptImg(this)" style="font-size:12px">'+
+    '<input type="hidden" id="receiptHold"><div id="receiptPrev" class="receiptPrev"></div>';
   openDrawer('报销申请',html,function(){
     var items=collectReimbItems();
     if(!items.length){ toast('请至少录入一张发票'); return; }
     var total=items.reduce(function(a,x){return a+x.amount},0);
     var adv=Number(_v('rmAdv'))||0;
-    var pn=_v('rmProj'), pid=(DB.projects.filter(function(p){return p.name===pn})[0]||{}).id||'';
+    var pn=_v('rmProj'), pid=(visibleProjects().filter(function(p){return p.name===pn})[0]||{}).id||'';
     var rel=_v('rmRel'), rid = (rel&&rel!=='（无）')? rel.slice(rel.lastIndexOf('[')+1,-1):'';
     DB.applications=DB.applications||[];
     DB.applications.unshift({id:uid('ap'),type:'reimb',title:_v('rmNote')?('报销：'+_v('rmNote').slice(0,12)):'费用报销',
       applicant:CUR_USER.username,applicantName:CUR_USER.name,line:_v('rmLine'),projectId:pid,
       status:'pending',createdAt:todayStr(),submitAt:todayStr(),relatedId:rid,advance:adv,
-      items:items,total:total,amount:total,note:_v('rmNote')});
+      items:items,total:total,amount:total,note:_v('rmNote'),receiptImg:_v('receiptHold')||''});
     saveDB(); closeDrawer(); toast('报销申请已提交，待审批'); renderExpense();
   },{priText:'提交申请'});
   addInvRow();
@@ -763,27 +807,62 @@ function verifyAllInvoice(appId){
   });
   saveDB(); toast('批量查验完成：通过 '+ok+' / 异常 '+bad); openAppView(appId);
 }
-function printReimbDoc(appId){
+/* 通用单据打印：支持出差 / 招待 / 报销 三类，含填写明细 + 关联发票 + 支付截图 */
+function printAppDoc(appId){
   var a=(DB.applications||[]).filter(function(x){return x.id===appId})[0]; if(!a) return;
-  var items=a.items||[];
-  var rows=items.map(function(it,i){
-    return '<tr><td>'+(i+1)+'</td><td>'+esc(it.type||it.category||'费用')+'</td><td>'+esc(it.code||'')+'</td><td>'+esc(it.no||it.invoiceNo||'')+'</td>'+
-      '<td style="text-align:right">'+yuan(it.amount||0)+'</td><td>'+esc(it.note||'')+'</td><td>'+(it.verified?'已查验':'未查验')+'</td></tr>';
-  }).join('');
-  var total=(a.total||0), adv=(a.advance||0), payable=total-adv;
+  var cnTitle=a.type==='trip'?'差旅申请单':a.type==='ent'?'业务招待申请单':'费用报销单';
+  var enTitle=a.type==='trip'?'BUSINESS TRIP APPLICATION':a.type==='ent'?'BUSINESS ENTERTAINMENT APPLICATION':'EXPENSE REIMBURSEMENT FORM';
+  /* 明细区：按类型生成 */
+  var detail='';
+  if(a.type==='trip'){
+    detail='<table class="rtbl"><tbody>'+
+      rkv('出差事由',a.reason)+rkv('目的地',a.dest)+rkv('起止日期',a.startDate+' 至 '+a.endDate+'（'+(a.days||0)+' 天）')+
+      rkv('交通工具',a.transport)+rkv('预估交通费',yuan(a.estTransport))+rkv('预估住宿费',yuan(a.estHotel))+
+      rkv('补贴/其他',yuan(a.estAllowance))+rkv('预估合计',yuan(a.amount))+
+      (a.note?rkv('备注',a.note):'')+'</tbody></table>';
+  } else if(a.type==='ent'){
+    detail='<table class="rtbl"><tbody>'+
+      rkv('招待对象',a.guest)+rkv('招待事由',a.reason)+rkv('人数',(a.headcount||0)+' 人')+
+      rkv('预估费用',yuan(a.estAmount))+(a.note?rkv('备注',a.note):'')+'</tbody></table>';
+  } else {
+    var items=a.items||[];
+    var rows=items.map(function(it,i){
+      return '<tr><td>'+(i+1)+'</td><td>'+esc(it.type||it.category||'费用')+'</td><td>'+esc(it.code||'')+'</td><td>'+esc(it.no||it.invoiceNo||'')+'</td>'+
+        '<td style="text-align:right">'+yuan(it.amount||0)+'</td><td>'+esc(it.note||'')+'</td><td>'+(it.verified?'已查验':'未查验')+'</td></tr>';
+    }).join('');
+    var total=(a.total||0), adv=(a.advance||0), payable=total-adv;
+    detail='<div class="rtitle">报销事由：'+esc(a.title||a.note||'')+'</div>'+
+      '<table class="rtbl"><thead><tr><th>序号</th><th>发票类型</th><th>发票代码</th><th>发票号码</th><th>金额(元)</th><th>摘要</th><th>查验</th></tr></thead><tbody>'+rows+'</tbody>'+
+      '<tfoot><tr><td colspan="4" style="text-align:right">合计</td><td style="text-align:right">'+yuan(total)+'</td><td colspan="2"></td></tr></tfoot></table>'+
+      '<div class="rsum">借款/预付款抵扣：'+yuan(adv)+'　|　实付金额：'+yuan(payable)+'</div>';
+  }
+  /* 支付截图区 */
+  var imgHtml='';
+  if(a.receiptImg){
+    imgHtml='<div class="rtitle" style="margin-top:12px">支付截图 / 凭证</div><div class="rimg"><img src="'+esc(a.receiptImg)+'" alt="支付截图"></div>';
+  }
   var html='<div class="rdoc">'+
-    '<div class="rhead"><div class="rlogo">'+xyLogo('prt')+'</div><div><div class="rt">甘肃新煜科技 · 费用报销单</div><div class="rs">EXPENSE REIMBURSEMENT FORM</div></div></div>'+
+    '<div class="rhead"><div class="rlogo">'+xyLogo('prt')+'</div><div><div class="rt">甘肃新煜科技 · '+cnTitle+'</div><div class="rs">'+enTitle+'</div></div></div>'+
     '<div class="rmeta"><div><span>申请人</span><b>'+esc(a.applicantName||'')+'</b></div><div><span>业务线</span><b>'+esc(a.line||'')+'</b></div>'+
       '<div><span>关联项目</span><b>'+esc(a.projectId?projName(a.projectId):'—')+'</b></div><div><span>申请日期</span><b>'+esc(a.submitAt||todayStr())+'</b></div></div>'+
-    '<div class="rtitle">报销事由：'+esc(a.title||a.note||'')+'</div>'+
-    '<table class="rtbl"><thead><tr><th>序号</th><th>发票类型</th><th>发票代码</th><th>发票号码</th><th>金额(元)</th><th>摘要</th><th>查验</th></tr></thead><tbody>'+rows+'</tbody>'+
-      '<tfoot><tr><td colspan="4" style="text-align:right">合计</td><td style="text-align:right">'+yuan(total)+'</td><td colspan="2"></td></tr></tfoot></table>'+
-    '<div class="rsum">借款/预付款抵扣：'+yuan(adv)+'　|　实付金额：'+yuan(payable)+'</div>'+
+    detail+imgHtml+
     '<div class="rsign"><div><span>申请人签字</span><br>　　　　　　</div><div><span>部门审核</span><br>　　　　　　</div><div><span>财务复核</span><br>　　　　　　</div><div><span>领导审批</span><br>　　　　　　</div></div>'+
     '<div class="rn">本单据由「甘肃新煜科技工作台」生成 · 单号 '+esc(a.id)+' · 打印时间 '+new Date().toLocaleString('zh-CN')+'</div>'+
     '</div>';
   var pa=document.getElementById('printArea'); if(pa){ pa.innerHTML=html; setTimeout(function(){ window.print(); },80); }
 }
+function rkv(k,v){ return '<tr><td class="rk">'+esc(k)+'</td><td>'+esc(v||'—')+'</td></tr>'; }
+/* 兼容旧调用 */
+function printReimbDoc(appId){ return printAppDoc(appId); }
+/* 支付截图上传：读文件为 dataURL 并回填 */
+function pickReceiptImg(input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  if(f.size>2*1024*1024){ toast('截图需小于 2MB'); return; }
+  var rd=new FileReader();
+  rd.onload=function(){ var el=document.getElementById('receiptPrev'); if(el){ el.innerHTML='<img src="'+rd.result+'"><button class="btn sm dgr" onclick="clearReceiptImg()">移除</button>'; } var h=document.getElementById('receiptHold'); if(h) h.value=rd.result; };
+  rd.readAsDataURL(f);
+}
+function clearReceiptImg(){ var el=document.getElementById('receiptPrev'); if(el) el.innerHTML=''; var h=document.getElementById('receiptHold'); if(h) h.value=''; }
 
 /* ---------- 申请详情（只读 + 审批流） ---------- */
 function openAppView(id){
@@ -798,11 +877,14 @@ function openAppView(id){
   } else {
     var rel=(DB.applications.filter(function(x){return x.id===a.relatedId})[0]||{}).title||'—';
     info='<div class="kv">'+appKv('关联申请',rel)+appKv('借款抵扣',yuan(a.advance||0))+appKv('报销合计',yuan(a.total))+appKv('应付金额',yuan((a.total||0)-(a.advance||0)))+'</div>'+
-      '<div class="sect" style="margin:8px 0 4px">发票明细（共 '+(a.items||[]).length+' 张）</div><div class="card" style="border:0;background:transparent;padding:0">'+reimbItemRows(a)+'</div>'+
-      '<div class="dsec">快捷动作</div><div class="chips">'+
-      '<span class="chip" onclick="printReimbDoc(\''+a.id+'\')">🖨 一键打印报销单</span>'+
-      '<span class="chip" onclick="verifyAllInvoice(\''+a.id+'\')">全部查验</span></div>';
+      '<div class="sect" style="margin:8px 0 4px">发票明细（共 '+(a.items||[]).length+' 张）</div><div class="card" style="border:0;background:transparent;padding:0">'+reimbItemRows(a)+'</div>';
   }
+  /* 支付截图展示（三类申请通用） */
+  var receiptView = a.receiptImg ? '<div class="sect" style="margin:8px 0 4px">支付截图 / 凭证</div><div class="receiptView"><img src="'+esc(a.receiptImg)+'"></div>' : '';
+  /* 快捷动作：出差/招待/报销均可一键打印；报销额外有全部查验 */
+  var actions='<div class="dsec">快捷动作</div><div class="chips">'+
+    '<span class="chip" onclick="printAppDoc(\''+a.id+'\')">🖨 一键打印'+(a.type==='trip'?'出差单':a.type==='ent'?'招待单':'报销单')+'</span>'+
+    (a.type==='reimb'?'<span class="chip" onclick="verifyAllInvoice(\''+a.id+'\')">全部查验</span>':'')+'</div>';
   var flow='<div class="flow">'+
     appFlowStep('y','提交申请',a.applicantName+' · '+a.submitAt)+
     (a.status==='pending'?appFlowStep('y','审批中','等待管理层审批'):
@@ -812,7 +894,7 @@ function openAppView(id){
     '<div class="dsec">基本信息</div>'+
     '<div class="kv">'+appKv('标题',a.title)+appKv('类型',appTypeLabel(a.type))+appKv('申请人',a.applicantName)+
       appKv('业务线/项目',appProjLine(a))+appKv('状态',a.status==='pending'?'待审批':a.status==='approved'?'已通过':'已驳回')+'</div>'+
-    '<div class="dsec">申请内容</div>'+info+
+    '<div class="dsec">申请内容</div>'+info+receiptView+actions+
     '<div class="dsec">审批流程</div>'+flow,
     function(){ closeDrawer(); },{priText:'关闭',hidePri:true});
 }
@@ -989,7 +1071,7 @@ function renderSales(){
 function runForm(pre){
   pre=pre||{};
   return fld('事项名称','rfMatter','如：接入系统评审',pre.matter)+
-    '<div class="f2">'+fldSel('关联项目','rfProj',DB.projects.map(function(p){return p.name}),pre.proj)+
+    '<div class="f2">'+fldSel('关联项目','rfProj',visibleProjects().map(function(p){return p.name}),pre.proj)+
     fld('对接单位','rfWhere','如：国网甘肃省电力公司',pre.where)+'</div>'+
     '<div class="f2">'+fld('责任人','rfOwner','张总',pre.owner)+fld('办结期限','rfDue','2026-08-30',pre.due)+'</div>'+
     '<div class="field"><label>当前状态</label>'+chips('1',['待办','进行中','卡点','已办结'],pre.status||'待办')+'</div>'+
@@ -1175,6 +1257,45 @@ function renderFinBody(){
         }).join('')) : '<div class="note">暂无开票记录。在「合同管理」中打开任意合同，点「＋ 登记开票」即可生成。</div>')+'</div>';
   }
   box.innerHTML=h;
+}
+/* 一键导出财务报账单据（CSV，含开票台账 + 收付款节点 + 已审报销明细），便于财务做账 */
+function exportFinVoucher(){
+  function qc(s){ s=(s===undefined||s===null)?'':String(s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+  var rows=[];
+  rows.push('===== 一、开票台账（金额单位：万元） =====');
+  rows.push('开票编号,关联合同编号,相对方,金额,税额,发票类型,状态,开票日,到期日,备注');
+  (DB.invoices||[]).forEach(function(x){
+    rows.push([x.no,x.contractCode,x.party,x.amount,x.tax,x.type,x.status,x.issueDate,x.dueDate,x.note].map(qc).join(','));
+  });
+  rows.push('');
+  rows.push('===== 二、合同收付款节点（未来 90 天 / 金额单位：万元） =====');
+  rows.push('计划日期,方向,事项,合同编号,相对方,金额,状态');
+  duePlans(90).forEach(function(d){
+    rows.push([d.p.planDate,d.c.dir,d.p.name,d.c.code,d.c.party,d.p.amount,(d.dd<0?('逾期'+(-d.dd)+'天'):(d.dd+'天后'))].map(qc).join(','));
+  });
+  rows.push('');
+  rows.push('===== 三、已审批报销明细（金额单位：元） =====');
+  rows.push('单号,类型,标题,申请人,业务线,关联项目,状态,金额,提交日期,审批人');
+  (DB.applications||[]).filter(function(a){return a.status==='approved';}).forEach(function(a){
+    rows.push([a.id,appTypeLabel(a.type),a.title,a.applicantName,a.line,a.projectId?projName(a.projectId):'—','已通过',appAmount(a),a.submitAt,a.auditorName].map(qc).join(','));
+  });
+  rows.push('');
+  rows.push('===== 四、报销发票明细（金额单位：元） =====');
+  rows.push('报销单号,发票类型,发票代码,发票号码,金额,摘要,查验状态');
+  (DB.applications||[]).filter(function(a){return a.type==='reimb';}).forEach(function(a){
+    (a.items||[]).forEach(function(it){
+      rows.push([a.id,it.type||it.category,it.code,it.no||it.invoiceNo,it.amount,it.note,it.verified?'已查验':'未查验'].map(qc).join(','));
+    });
+  });
+  rows.push('');
+  rows.push('导出时间：'+new Date().toLocaleString('zh-CN')+'  ｜  甘肃新煜科技工作台 · 财务报账单据');
+  try{
+    var csv='\ufeff'+rows.join('\n');
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='新煜科技_财务报账单据_'+todayStr()+'.csv'; a.click();
+    toast('财务报账单据已导出（CSV，可用 Excel 打开）');
+  }catch(e){ toast('导出失败：'+(e.message||e)); }
 }
 function setInvoiceStatus(id){
   var x=(DB.invoices||[]).filter(function(i){return i.id===id})[0]; if(!x) return;

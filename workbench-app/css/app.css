@@ -787,6 +787,14 @@ input::placeholder,textarea::placeholder{color:#4d5c78}
 .rdoc .rsign{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px;font-size:12px}
 .rdoc .rsign span{display:block;color:#999;margin-bottom:20px}
 .rdoc .rn{margin-top:18px;font-size:10px;color:#aaa;text-align:center}
+.rdoc .rk{width:120px;background:#fff7ef;color:#7a3b00;font-weight:600;white-space:nowrap}
+.rdoc .rimg{margin:8px 0;text-align:center;page-break-inside:avoid}
+.rdoc .rimg img{max-width:80%;max-height:320px;border:1px solid #ddd;border-radius:6px;padding:4px;background:#fff}
+/* 报销单据截图预览（表单内） */
+.receiptPrev{margin-top:8px}
+.receiptPrev img{max-width:100%;max-height:200px;border-radius:6px;border:1px solid var(--bd);margin-bottom:6px;display:block}
+.receiptView{margin:6px 0}
+.receiptView img{max-width:100%;max-height:260px;border-radius:6px;border:1px solid var(--bd)}
 
 /* ============ 移动端适配（iOS / 鸿蒙 / 安卓） ============ */
 html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
@@ -809,6 +817,23 @@ button,.btn,.chip,.nav,.b,.seg button{min-height:40px}
   .invrow .btn{grid-column:1 / -1}
   .rdoc{padding:16px}
   .rdoc .rmeta{grid-template-columns:repeat(2,1fr)}
+  /* ptitle 在窄屏自动换行，操作按钮不被挤压 */
+  .ptitle{flex-wrap:wrap;gap:8px}
+  .ptitle .spacer{display:none}
+  .ptitle .seg,.ptitle .btn{font-size:12px}
+  /* 底部导航横向滚动，容纳更多 Tab（关键人/机会等） */
+  .bottomnav{overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .bottomnav::-webkit-scrollbar{display:none}
+  .bottomnav .b{flex:0 0 auto;min-width:64px;font-size:11px}
+  /* 关键人/财务等宽表横向滚动 */
+  .card.scroll,.scroll{overflow-x:auto}
+  /* KPI 网格窄屏 2 列 */
+  .grid.kpis{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:380px){
+  .grid.kpis{grid-template-columns:1fr}
+  .bottomnav .b{min-width:56px}
+  .ptitle h1{font-size:18px}
 }
 @media print{
   body{background:#fff !important;color:#000 !important}

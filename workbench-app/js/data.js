@@ -385,9 +385,9 @@ function seed(){
 
     /* ---------------- 平台账号（账号/密码登录 + 角色权限） ---------------- */
     users:[
-      {id:'u_admin', username:'admin',   name:'系统管理员', role:'admin',   pwd:hashPwd('admin888'),   disabled:false, createdAt:'2026-08-08'},
-      {id:'u_mgr',   username:'manager', name:'经营管理者', role:'manager', pwd:hashPwd('manager888'), disabled:false, createdAt:'2026-08-08'},
-      {id:'u_mem',   username:'member',  name:'业务成员',   role:'member',  pwd:hashPwd('member888'),  disabled:false, createdAt:'2026-08-08'}
+      {id:'u_admin', username:'admin',   name:'系统管理员', role:'admin',   field:'综合',     pwd:hashPwd('admin888'),   disabled:false, createdAt:'2026-08-08'},
+      {id:'u_mgr',   username:'manager', name:'经营管理者', role:'manager', field:'综合',     pwd:hashPwd('manager888'), disabled:false, createdAt:'2026-08-08'},
+      {id:'u_mem',   username:'member',  name:'业务成员',   role:'member',  field:'新能源',   pwd:hashPwd('member888'),  disabled:false, createdAt:'2026-08-08'}
     ],
 
     /* ---------------- 登录审计 ---------------- */
@@ -405,7 +405,9 @@ function ensureV5(db){
   if(!db.applications) db.applications=[];
   if(!db.opportunities) db.opportunities=[];
   if(!db.invoices) db.invoices=[];
-  (db.users||[]).forEach(function(u){ if(u.mustSetPwd===undefined) u.mustSetPwd=false; if(u.pwd===undefined) u.pwd=null; });
+  (db.users||[]).forEach(function(u){ if(u.mustSetPwd===undefined) u.mustSetPwd=false; if(u.pwd===undefined) u.pwd=null; if(!u.field) u.field='综合'; });
+  /* 报销/差旅/招待申请补支付截图字段与发票行（兼容旧库） */
+  (db.applications||[]).forEach(function(a){ if(a.receiptImg===undefined) a.receiptImg=''; if(a.type==='reimb'&&!a.items) a.items=[]; });
   backfillContractLines(db);
   if(db.meta) db.meta.ver='5.0';
 }
@@ -429,7 +431,8 @@ function TGT(){ return (DB&&DB.targets)||seed().targets; }
 function loadDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY))||null }catch(e){ return null } }
 function saveDB(){ try{ localStorage.setItem(DB_KEY,JSON.stringify(DB)) }catch(e){}
   if(typeof afterSave==='function') afterSave(); }
-var DB = ensureV5(loadDB()) || seed();
+var DB = loadDB()||seed();
+ensureV5(DB); /* 首次运行（seed）与升级（老库）统一补字段 */
 backfillContractLines(DB); /* 首次运行（无本地库）时 seed 合同也补 line */
 saveDB();
 function resetDB(){ if(confirm('确定恢复为初始示例数据？本机新增的数据将被清除。')){ DB=seed(); saveDB(); location.reload(); } }

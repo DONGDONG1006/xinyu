@@ -218,7 +218,7 @@ function openContractAdd(){
     '<div class="f2">'+fld('合同金额（万元）','nfAmt','8800')+fld('我方负责人','nfOwner','王工')+'</div>'+
     '<div class="f2">'+fld('签订日期','nfSigned','',todayStr(),"onchange=\"ctAutoNo('nfLine','nfSigned','nfCode')\"")+fld('开始日期','nfStart',todayStr())+'</div>'+
     '<div class="f2">'+fld('结束日期','nfEnd','2027-12-31')+fld('质保期至','nfWar','2029-12-31')+'</div>'+
-    fldSel('关联项目','nfProj',['（不关联）'].concat(DB.projects.map(function(p){return p.name})))+
+    fldSel('关联项目','nfProj',['（不关联）'].concat(visibleProjects().map(function(p){return p.name})))+
     '<div class="f2">'+fld('质保金（万元）','nfRet','0')+'</div>'+
     fldArea('风险提示','nfRisk','如：账期 90 天，付款集中在 9 月')+
     '<div class="note">保存后可在合同详情中逐条录入<b>收付款计划</b>与<b>变更签证</b>。</div>',
@@ -252,7 +252,7 @@ function openContractEdit(id){
     '<div class="f2">'+fld('合同金额（万元）','efAmt', c.amount)+fld('我方负责人','efOwner', c.owner)+'</div>'+
     '<div class="f2">'+fld('签订日期','efSigned','',c.signed, "onchange=\"ctAutoNo('efLine','efSigned','efCode')\"")+fld('履约期限起','efStart', c.start)+'</div>'+
     '<div class="f2">'+fld('履约期限止','efEnd', c.end)+fld('质保期至','efWar', c.warranty)+'</div>'+
-    '<div class="f2">'+fldSel('关联项目','efProj', ['（不关联）'].concat(DB.projects.map(function(p){return p.name})), c.project?projName(c.project):'（不关联）')+fld('质保金（万元）','efRet', c.retention)+'</div>'+
+    '<div class="f2">'+fldSel('关联项目','efProj', ['（不关联）'].concat(visibleProjects().map(function(p){return p.name})), c.project?projName(c.project):'（不关联）')+fld('质保金（万元）','efRet', c.retention)+'</div>'+
     fldArea('风险提示','efRisk', c.risk),
     function(){
       var n=_v('efName'); if(!n){toast('请填写合同名称');return}
@@ -311,7 +311,7 @@ function renderDetail(){
   if(dt)dt.style.display='';
   var p=projById(curProject);
   document.getElementById('dtName').textContent=p.name;
-  document.getElementById('dtSel').innerHTML=DB.projects.map(function(x){
+  document.getElementById('dtSel').innerHTML=visibleProjects().map(function(x){
     return '<option value="'+x.id+'"'+(x.id===curProject?' selected':'')+'>'+esc(x.name)+'</option>'}).join('');
   var nodes=DB.nodes[curProject]||[], ppl=DB.people[curProject]||[], orgs=DB.orgs[curProject]||[];
   var cs=DB.contracts.filter(function(c){return c.project===curProject});
@@ -514,6 +514,58 @@ function delNode(i){
 
 /* ---------- 关键人 · 联系人 ---------- */
 function pplList(){ if(!DB.people[curProject]) DB.people[curProject]=[]; return DB.people[curProject]; }
+
+/* ===== 关键人独立模块：跨项目汇总 + 与项目/合同/开票联动 ===== */
+var PPL_FILTER='all';
+function pplFilterSet(f){ PPL_FILTER=f; document.querySelectorAll('#pplFilter button').forEach(function(b){b.classList.toggle('on',b.dataset.f===f);}); renderPeople(); }
+/* 汇总所有可见项目的关键人，并计算每人所属项目 / 关联合同额 / 关联开票额 */
+function pplAll(){
+  var out=[];
+  visibleProjects().forEach(function(p){
+    var arr=DB.people[p.id]||[];
+    var cs=DB.contracts.filter(function(c){return c.project===p.id});
+    var ctAmt=cs.reduce(function(a,c){return a+(c.amount||0)},0);
+    var invs=(DB.invoices||[]).filter(function(iv){ return cs.some(function(c){return c.id===iv.contractId}); });
+    var ivAmt=invs.reduce(function(a,iv){return a+(iv.amount||0)},0);
+    arr.forEach(function(pp){
+      out.push({ p:pp, projectId:p.id, projectName:p.name, projectLine:p.line,
+        contractAmount:ctAmt, invoiceAmount:ivAmt, contractCount:cs.length, invoiceCount:invs.length });
+    });
+  });
+  return out;
+}
+function renderPeople(){
+  if(!document.getElementById('pplList')) return;
+  var all=pplAll();
+  var list = PPL_FILTER==='all'? all : all.filter(function(x){return x.p.level===PPL_FILTER;});
+  var dec=all.filter(function(x){return x.p.level==='决策'}).length,
+      inf=all.filter(function(x){return x.p.level==='影响'}).length,
+      exe=all.filter(function(x){return x.p.level==='执行'}).length;
+  var totalInv=all.reduce(function(a,x){return a+x.invoiceAmount},0);
+  var totalCt=all.reduce(function(a,x){return a+x.contractAmount},0);
+  document.getElementById('pplKpi').innerHTML=
+    kpi('在册关键人',all.length,'位','决策 '+dec+' / 影响 '+inf+' / 执行 '+exe)+
+    kpi('决策层覆盖',dec,'位','能拍板的关键人',(dec?'ok':'danger'))+
+    kpi('关联合同额',fmt(totalCt),'万元','关键人所属项目合同总额','')+
+    kpi('关联开票额',fmt(totalInv),'万元','已开票金额（业财联动）','ok');
+  document.getElementById('pplList').innerHTML = list.length?
+    tbl('<th>姓名</th><th>职务</th><th>单位/机构</th><th>决策层级</th><th>电话</th><th>所属项目</th><th class="n">关联合同(万)</th><th class="n">已开票(万)</th><th></th>',
+      list.map(function(x){
+        var p=x.p;
+        return '<tr style="cursor:pointer" onclick="goDetail(\''+x.projectId+'\')">'+
+          '<td class="nm"><b>'+esc(p.name)+'</b></td>'+
+          '<td>'+esc(p.title||'—')+'</td>'+
+          '<td>'+esc(p.org||'—')+'</td>'+
+          '<td>'+tag(p.level||'执行', p.level==='决策'?'t-red':p.level==='影响'?'t-yel':'t-blu')+'</td>'+
+          '<td class="mono">'+esc(p.phone||'—')+'</td>'+
+          '<td>'+esc(x.projectName)+'<div class="s" style="color:var(--txt3)">'+esc(x.projectLine||'')+'</div></td>'+
+          '<td class="n">'+(x.contractCount?fmt(x.contractAmount):'—')+'</td>'+
+          '<td class="n cy">'+(x.invoiceCount?fmt(x.invoiceAmount):'—')+'</td>'+
+          '<td><span class="chip" onclick="event.stopPropagation();goDetail(\''+x.projectId+'\')">查看项目</span></td></tr>';
+      }).join(''))
+    : '<div class="note">暂无关键人。在「项目详情 → 关键人·联系人」中录入后，此处自动汇总并联动合同与开票。</div>'+
+      '<div class="note" style="margin-top:8px;color:var(--txt3)">业务员仅可见本人负责项目的关键人。</div>';
+}
 function heatBar(h){
   var s='<span class="heat">';
   for(var i=1;i<=5;i++) s+='<i class="'+(i<=h?'on':'')+'"></i>';
@@ -709,7 +761,7 @@ function oppStageCls(s){ return s==='中标'?'t-grn':s==='丢单'?'t-red':s==='�
 function oppLineShort(l){ return ({'新能源项目':'新能源','大交通机电':'大交通','网约车平台':'网约车','新能源车销售':'车辆销售'})[l]||l; }
 function renderOpp(){
   if(!document.getElementById('oppList')) return;
-  var all=DB.opportunities||[];
+  var all=visibleOpps();
   var list=all.filter(function(o){
     if(OPP_FILTER==='open') return (o.stage!=='中标'&&o.stage!=='丢单');
     if(OPP_FILTER==='win') return o.stage==='中标';
@@ -1077,6 +1129,11 @@ function stExpSet(f){ stExpF=f;
 }
 function renderStaff(){
   var staff=DB.staff||[];
+  /* 业务员数据隔离：除自身外不可查看其余人员 —— 仅显示本人（按 userId 或姓名匹配） */
+  if(isMember()){
+    var me=CUR_USER;
+    staff=staff.filter(function(s){ return (s.userId&&s.userId===me.id) || s.name===me.name; });
+  }
   var fstaff = stLine==='all'? staff : staff.filter(function(s){return s.line===stLine});
   var fpids={}; fstaff.forEach(function(s){(s.projects||[]).forEach(function(p){fpids[p]=1})});
   var fprojs = DB.projects.filter(function(p){return fpids[p.id]});
@@ -1084,11 +1141,13 @@ function renderStaff(){
   var recv=fconts.filter(function(c){return c.dir==='收'}).reduce(function(a,c){return a+c.amount},0);
   var pay=fconts.filter(function(c){return c.dir==='付'}).reduce(function(a,c){return a+c.amount},0);
 
-  /* 业务费用范围 = 当前业务线筛选下的费用 */
+  /* 业务费用范围 = 当前业务线筛选下的费用（业务员仅本人费用） */
   var fexp = (DB.expenses||[]).filter(function(e){
+    if(isMember()){ var s=staffById(e.staffId)||{}; return (s.userId&&s.userId===(CUR_USER&&CUR_USER.id))||s.name===(CUR_USER&&CUR_USER.name); }
     return stLine==='all' || (staffById(e.staffId)||{}).line===stLine;
   });
   var eList = expFilter(stExpF).filter(function(e){
+    if(isMember()){ var s=staffById(e.staffId)||{}; return (s.userId&&s.userId===(CUR_USER&&CUR_USER.id))||s.name===(CUR_USER&&CUR_USER.name); }
     return stLine==='all' || (staffById(e.staffId)||{}).line===stLine;
   });
   var sumAll=expSum(fexp);
@@ -1189,7 +1248,7 @@ function staffForm(s){
     '<div class="f2">'+fld('负责区域','stRegion','张掖/酒泉',s.region)+
       '<div class="field"><label>状态</label>'+chips('1',['在职','试用','停职'],s.status||'在职')+'</div></div>'+
     fld('入职日期','stJoined',todayStr(),s.joined)+
-    '<div class="field"><label>负责项目（可多选）</label>'+chipsMulti('2',DB.projects.map(function(p){return p.name}),(s.projects||[]).map(projName))+'</div>'+
+    '<div class="field"><label>负责项目（可多选）</label>'+chipsMulti('2',visibleProjects().map(function(p){return p.name}),(s.projects||[]).map(projName))+'</div>'+
     fldArea('备注','stNote','擅长的业务、对接资源、考核重点',s.note);
 }
 function openStaffAdd(){
@@ -1214,7 +1273,7 @@ function openExpenseAdd(opts){
   var sname=staffName(preS)||(DB.staff[0]?DB.staff[0].name:'—');
   openDrawer(e?'编辑业务费用':'登记业务费用',
     '<div class="f2">'+fldSel('业务人员','exStaff',DB.staff.map(function(s){return s.name}),sname)+
-      fldSel('关联项目','exProj',['（不关联）'].concat(DB.projects.map(function(p){return p.name})),pname)+'</div>'+
+      fldSel('关联项目','exProj',['（不关联）'].concat(visibleProjects().map(function(p){return p.name})),pname)+'</div>'+
     '<div class="f2">'+fldSel('费用类型','exType',['招待费','差旅费','佣金提成','通讯交通费','其他'],e?e.type:'招待费')+
       fld('金额（元）','exAmt',e?String(e.amount):'')+'</div>'+
     '<div class="f2">'+fld('发生日期','exDate',e?e.date:todayStr())+fld('发票/单据号','exNo',e?(''):'')+'</div>'+
@@ -1291,8 +1350,9 @@ function exportExpenses(){
    ================================================================== */
 function renderMap(){
   if(!document.getElementById('mapSvg')) return;
-  document.getElementById('mapSvg').innerHTML = renderChinaMap(DB.projects);
-  document.getElementById('mapList').innerHTML = DB.projects.map(function(p){
+  var mapProjs=visibleProjects();
+  document.getElementById('mapSvg').innerHTML = renderChinaMap(mapProjs);
+  document.getElementById('mapList').innerHTML = mapProjs.map(function(p){
     return '<div class="li mapitem" onclick="openTwin(\''+p.id+'\')" style="cursor:pointer">'+
       '<div class="t">'+esc(p.name)+'<div class="s">'+p.type+' · '+p.stage+' · '+esc(p.addr)+'</div></div>'+
       '<div style="width:120px">'+bar(p.progress)+'</div>'+
