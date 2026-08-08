@@ -335,7 +335,7 @@
 
     <!-- ============ 关键人管理（独立模块，与项目/开票联动） ============ -->
     <section id="p-people" class="hide">
-      <div class="ptitle"><h1>关键人管理</h1><span class="sub">项目负责人独立台账 · 与项目 / 合同 / 开票联动</span>
+      <div class="ptitle"><h1>关键人管理</h1><span class="sub">客户/项目负责人独立台账 · 与项目 / 合同 / 开票联动</span>
         <div class="spacer"></div>
         <span class="seg" id="pplFilter">
           <button class="on" data-f="all" onclick="pplFilterSet('all')">全部</button>
@@ -343,9 +343,10 @@
           <button data-f="影响" onclick="pplFilterSet('影响')">影响层</button>
           <button data-f="执行" onclick="pplFilterSet('执行')">执行层</button>
         </span>
+        <button class="btn pri" onclick="openPplAdd()">＋ 新增关键人</button>
       </div>
       <div class="grid kpis" id="pplKpi"></div>
-      <div class="sect">关键人台账 <span class="tip">点击行直达所属项目 · 含关联合同额 / 开票额</span></div>
+      <div class="sect">关键人台账 <span class="tip">三角色均可新增/编辑 · 删除仅管理员 · 含关联合同额 / 开票额</span></div>
       <div class="card scroll"><div id="pplList"></div></div>
     </section>
 

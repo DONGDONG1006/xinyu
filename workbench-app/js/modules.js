@@ -631,7 +631,7 @@ function renderPeople(){
     tbl('<th>姓名</th><th>职务</th><th>单位/机构</th><th>决策层级</th><th>电话</th><th>所属项目</th><th class="n">关联合同(万)</th><th class="n">已开票(万)</th><th></th>',
       list.map(function(x){
         var p=x.p;
-        return '<tr style="cursor:pointer" onclick="goDetail(\''+x.projectId+'\')">'+
+        return '<tr>'+
           '<td class="nm"><b>'+esc(p.name)+'</b></td>'+
           '<td>'+esc(p.title||'—')+'</td>'+
           '<td>'+esc(p.org||'—')+'</td>'+
@@ -640,10 +640,67 @@ function renderPeople(){
           '<td>'+esc(x.projectName)+'<div class="s" style="color:var(--txt3)">'+esc(x.projectLine||'')+'</div></td>'+
           '<td class="n">'+(x.contractCount?fmt(x.contractAmount):'—')+'</td>'+
           '<td class="n cy">'+(x.invoiceCount?fmt(x.invoiceAmount):'—')+'</td>'+
-          '<td><span class="chip" onclick="event.stopPropagation();goDetail(\''+x.projectId+'\')">查看项目</span></td></tr>';
+          '<td class="act"><span class="chip" onclick="openPplView(\''+x.projectId+'\',\''+p.id+'\')">查看/编辑</span>'+
+            (isAdmin()?'<span class="chip" style="color:#ff6b6b" onclick="delPpl(\''+x.projectId+'\',\''+p.id+'\')">删除</span>':'')+'</td></tr>';
       }).join(''))
-    : '<div class="note">暂无关键人。在「项目详情 → 关键人·联系人」中录入后，此处自动汇总并联动合同与开票。</div>'+
-      '<div class="note" style="margin-top:8px;color:var(--txt3)">业务员仅可见本人负责项目的关键人。</div>';
+    : '<div class="note">暂无关键人。点击右上方「＋ 新增关键人」录入，或沿用项目详情内的联系人。</div>'+
+      '<div class="note" style="margin-top:8px;color:var(--txt3)">业务员仅可见本人负责项目的关键人；删除仅管理员可操作。</div>';
+}
+/* 独立模块的新增关键人：选所属项目 + 录入档案（业务员/管理层/管理员均可新增） */
+function openPplAdd(){
+  var ps=visibleProjects();
+  if(!ps.length){ toast('暂无可见项目，无法新增关键人'); return; }
+  var projSel='<div class="field"><label>所属项目</label><select name="pplProj">'+ps.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('')+'</select></div>';
+  openDrawer('＋ 新增关键人 / 客户', projSel+personForm(),function(){
+    var pid=_v('pplProj');
+    if(!DB.people[pid]) DB.people[pid]=[];
+    var n=_v('pfName'); if(!n){toast('请填写姓名');return}
+    DB.people[pid].push({id:uid('p'),name:n,title:_v('pfTitle'),org:_v('pfOrg'),level:_chip('1'),
+      phone:_v('pfPhone')||'—',wechat:_v('pfWx')||'—',email:_v('pfEmail')||'—',role:_v('pfRole')||'对接',heat:Number(_chip('2'))||3,
+      last:_v('pfLast'),next:_v('pfNext'),pref:_v('pfPref'),note:_v('pfNote')});
+    saveDB(); closeDrawer(); toast('已建档：'+n+'（关联项目 '+projName(pid)+'）'); renderPeople();
+  },{priText:'保存关键人'});
+}
+/* 独立模块的查看/编辑：按 projectId+personId 定位 */
+function openPplView(pid,personId){
+  var arr=DB.people[pid]||[]; var p=arr.filter(function(x){return x.id===personId})[0];
+  if(!p){ toast('未找到该关键人'); return; }
+  var proj=projById(pid);
+  openDrawer(p.name+' · '+(p.title||'—')+'（'+(proj?proj.name:'—')+'）',
+    '<div class="dsec">档案信息</div><div class="kv">'+
+    '<div class="k">所属项目</div><div class="v">'+esc(proj?proj.name:'—')+'</div>'+
+    '<div class="k">单位</div><div class="v">'+esc(p.org||'—')+'</div>'+
+    '<div class="k">决策层级</div><div class="v">'+tag(p.level||'执行',p.level==='决策'?'t-red':p.level==='影响'?'t-yel':'t-blu')+'</div>'+
+    '<div class="k">电话</div><div class="v mono">'+esc(p.phone||'—')+'</div>'+
+    '<div class="k">微信</div><div class="v">'+esc(p.wechat||'—')+'</div>'+
+    '<div class="k">邮箱</div><div class="v">'+esc(p.email||'—')+'</div>'+
+    '<div class="k">项目角色</div><div class="v">'+esc(p.role||'—')+'</div>'+
+    '<div class="k">关系温度</div><div class="v">'+heatBar(p.heat||3)+'</div>'+
+    '<div class="k">最近接触</div><div class="v mono">'+(p.last||'—')+'</div>'+
+    '<div class="k">下次计划</div><div class="v mono">'+(p.next||'—')+'</div>'+
+    '<div class="k">沟通偏好</div><div class="v">'+esc(p.pref||'—')+'</div>'+
+    '<div class="k">关系备注</div><div class="v">'+esc(p.note||'—')+'</div></div>'+
+    '<div class="dsec">编辑档案</div>'+personForm(p)+
+    '<div class="dsec">快捷动作</div><div class="chips">'+
+    '<span class="chip" onclick="goDetail(\''+pid+'\')">查看所属项目</span>'+
+    (isAdmin()?'<span class="chip" style="color:#ff6b6b" onclick="delPpl(\''+pid+'\',\''+personId+'\')">删除该关键人</span>':'<span class="note">删除仅管理员可操作</span>')+'</div>',
+    function(){
+      /* 业务员/管理层/管理员均可编辑 */
+      p.name=_v('pfName')||p.name; p.title=_v('pfTitle'); p.org=_v('pfOrg'); p.level=_chip('1');
+      p.phone=_v('pfPhone'); p.wechat=_v('pfWx'); p.email=_v('pfEmail'); p.role=_v('pfRole'); p.heat=Number(_chip('2'))||3;
+      p.last=_v('pfLast'); p.next=_v('pfNext'); p.pref=_v('pfPref'); p.note=_v('pfNote');
+      saveDB(); closeDrawer(); toast('档案已更新'); renderPeople();
+    },{priText:'保存修改'});
+}
+/* 独立模块删除关键人：仅管理员 */
+function delPpl(pid,personId){
+  if(!isAdmin()){ toast('删除关键人仅平台管理员可操作'); return; }
+  var arr=DB.people[pid]||[];
+  var p=arr.filter(function(x){return x.id===personId})[0];
+  if(!p){ toast('未找到该关键人'); return; }
+  if(!confirm('确认删除关键人「'+p.name+'」？\n所属项目：'+projName(pid)+'\n此操作不可撤销。')) return;
+  DB.people[pid]=arr.filter(function(x){return x.id!==personId});
+  saveDB(); closeDrawer(); toast('已删除关键人：'+p.name); renderPeople();
 }
 function heatBar(h){
   var s='<span class="heat">';
