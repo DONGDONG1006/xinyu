@@ -183,16 +183,27 @@ function openChangeAdd(cid){
     },{priText:'保存'});
 }
 function openInvoice(cid){
-  var c=ctById(cid);
+  var c=ctById(cid); if(!c) return;
+  var remain=(c.amount||0)-(c.invoiced||0);
+  var ym=todayStr().slice(0,7).replace('-','');
+  var n=(DB.invoices||[]).filter(function(x){return x.no&&x.no.indexOf('INV-'+ym)===0;}).length;
+  var defNo='INV-'+ym+'-'+('00'+(n+1)).slice(-3);
   openDrawer('登记开票 · '+c.code,
-    '<div class="f2">'+fld('开票金额（万元）','ivAmt','')+fld('开票日期','ivDate',todayStr())+'</div>'+
-    fldSel('发票类型','ivType',['增值税专用发票','增值税普通发票','电子发票'])+
-    fld('发票号码','ivNo','')+fldArea('备注','ivNote',''),
+    '<div class="note" style="margin-bottom:8px">合同可开余额 <b class="mono">'+fmt(remain)+'</b> 万元（已开 '+fmt(c.invoiced)+'）。开票后回写入「业务财务 → 开票」台账，并联动项目推进与回款。</div>'+
+    fld('开票编号','ivNo',defNo)+
+    '<div class="f2">'+fld('开票金额（万元）','ivAmt',remain)+fld('开票日期','ivDate',todayStr())+'</div>'+
+    fldSel('发票类型','ivType',['增值税专用发票','增值税普通发票','电子发票'],'增值税专用发票')+
+    '<div class="f2">'+fld('税额（万元）','ivTax',(remain/1.13*0.13).toFixed(1))+fld('到期日','ivDue','')+'</div>'+
+    '<div class="field"><label>状态</label>'+chips('1',['待开','已开','已寄'],'已开')+'</div>'+
+    fldArea('备注','ivNote','对应收付款计划期次 / 邮寄信息'),
     function(){
       var a=_num('ivAmt'); if(!a){toast('请填写开票金额');return}
+      DB.invoices=DB.invoices||[];
+      DB.invoices.unshift({id:uid('iv'),no:_v('ivNo')||defNo,contractId:c.id,contractCode:c.code,party:c.party,
+        amount:a,tax:_num('ivTax'),type:_v('ivType'),status:_chip('1'),issueDate:_v('ivDate'),dueDate:_v('ivDue'),note:_v('ivNote')});
       c.invoiced=Math.min(c.amount,c.invoiced+a);
       saveDB(); toast('已登记开票 '+fmt(a)+' 万元'); openContractView(cid);
-    },{priText:'保存'});
+    },{priText:'保存开票'});
 }
 function openContractAdd(){
   if(!canAddProject()){ toast('请先登录后再新增合同'); return; }
@@ -392,22 +403,63 @@ function dtNodes(){
       var od=(!n.actual&&n.plan)?days(n.plan):0;
       return '<div class="it '+cls+'" onclick="openNodeView('+i+')" style="cursor:pointer">'+
         '<div class="hd"><span class="nm">'+esc(n.name)+'</span>'+
-        tag(n.status,n.status==='已完成'?'t-grn':n.status==='延期'?'t-red':n.status==='进行中'?'t-cy':'t-gry')+
+        tag(n.status,n.status==='已完成'?'t-grn':n.status==='延期'||n.status==='受阻'?'t-red':n.status==='进行中'?'t-cy':'t-gry')+
         (od>0&&n.status!=='已完成'?tag('逾期 '+od+' 天','t-red'):'')+'</div>'+
         '<div class="meta"><span>计划 <b>'+n.plan+'</b></span><span>实际 <b>'+(n.actual||'—')+'</b></span>'+
         '<span>责任人 <b>'+esc(n.owner)+'</b></span><span>对接 '+esc(n.dep)+'</span></div>'+
         (n.impact?'<div class="meta"><span style="color:var(--txt3)">影响：'+esc(n.impact)+'</span></div>':'')+
         '</div>';
     }).join('') : '<div class="note">尚未录入关键节点，点击右上角新增。</div>')+
-    '</div></div>';
+    '</div></div>'+nodeKanban()+nodeAnalysis();
+}
+/* CRM 式节点看板：按状态分列，体现管控与执行 */
+function nodeStatusCols(){ return ['未开始','进行中','延期','受阻','已完成']; }
+function nodeKanban(){
+  var N=nodeList(); if(!N.length) return '';
+  var cols=nodeStatusCols();
+  return '<div class="sect" style="margin-top:16px">节点看板（CRM 管控视图）</div><div class="kanban">'+
+    cols.map(function(c){
+      var items=N.filter(function(n){return (n.status||'未开始')===c;});
+      return '<div class="kcol kc-'+({ '未开始':'todo','进行中':'doing','延期':'late','受阻':'block','已完成':'done'}[c])+'">'+
+        '<div class="kh">'+c+' <span class="kc">'+items.length+'</span></div>'+
+        items.map(function(n,i){
+          var realIdx=N.indexOf(n);
+          return '<div class="kcard" onclick="openNodeView('+realIdx+')">'+
+            '<div class="kn">'+esc(n.name)+'</div>'+
+            '<div class="kmeta"><span>'+esc(n.owner||'—')+'</span><span class="mono">'+n.plan+'</span></div>'+
+            '<div class="ktags">'+tag(n.priority||'中',(n.priority==='高'?'t-red':n.priority==='中'?'t-yel':'t-blu'))+tag(n.risk||'无',(n.risk==='高'?'t-red':n.risk==='中'?'t-yel':'t-grn'))+'</div>'+
+            '<div class="kprog">'+bar(n.progress!=null?n.progress:0)+'<span>'+(n.progress!=null?n.progress:0)+'%</span></div>'+
+            '</div>';
+        }).join('')+
+        '</div>';
+    }).join('')+'</div>';
+}
+/* 节点执行分析：完成度 / 逾期 / 风险 / 优先级分布 */
+function nodeAnalysis(){
+  var N=nodeList(); if(!N.length) return '';
+  var avg=Math.round(N.reduce(function(a,n){return a+(n.progress!=null?n.progress:0);},0)/N.length);
+  var od=N.filter(function(n){return n.status!=='已完成'&&n.plan&&days(n.plan)>0;}).length;
+  var hi=N.filter(function(n){return n.risk==='高';}).length;
+  var blk=N.filter(function(n){return n.status==='延期'||n.status==='受阻';}).length;
+  var dist=function(key,arr){ return arr.map(function(v){ var c=N.filter(function(n){return (n[key]||(key==='risk'?'无':(key==='priority'?'中':'')))===v;}).length; return v+' '+c; }).join(' · '); };
+  return '<div class="sect" style="margin-top:16px">节点执行分析</div><div class="card"><div class="grid kpis" style="margin-bottom:10px">'+
+    kpi('整体完成度',avg,'%','各节点进度均值',avg>=60?'ok':'warn')+
+    kpi('逾期节点',od,'个','计划日已过的未完节点',od?'danger':'ok')+
+    kpi('高风险节点',hi,'个','风险等级=高',hi?'danger':'ok')+
+    kpi('卡点(延期/受阻)',blk,'个','需升级处理',blk?'danger':'ok')+
+    '</div>'+
+    '<div class="note">风险分布：'+dist('risk',['高','中','低','无'])+'　|　优先级分布：'+dist('priority',['高','中','低'])+
+    '<br>建议：高风险且逾期的节点应自动升级至分管领导，纳入经营例会强制议题。</div></div>';
 }
 function nodeForm(n){
   n=n||{};
   return fld('节点名称','ndName','如：接入系统评审通过',n.name)+
     '<div class="f2">'+fld('计划完成日','ndPlan','2026-08-20',n.plan)+fld('实际完成日','ndActual','留空表示未完成',n.actual)+'</div>'+
     '<div class="f2">'+fld('责任人','ndOwner','李工',n.owner)+fld('对接单位','ndDep','国网甘肃省电力公司',n.dep)+'</div>'+
-    '<div class="field"><label>节点状态</label>'+chips('1',['未开始','进行中','已完成','延期'],n.status||'未开始')+'</div>'+
-    fld('影响说明','ndImpact','该节点卡住会影响什么',n.impact)+
+    '<div class="field"><label>节点状态（CRM 管控）</label>'+chips('1',['未开始','进行中','延期','受阻','已完成'],n.status||'未开始')+'</div>'+
+    '<div class="f2"><div class="field"><label>优先级</label>'+chips('3',['高','中','低'],n.priority||'中')+'</div>'+
+      '<div class="field"><label>风险等级</label>'+chips('4',['高','中','低','无'],n.risk||'无')+'</div></div>'+
+    '<div class="f2">'+fld('完成进度 %','ndProg',(n.progress!=null?n.progress:0),n.progress!=null?n.progress:0)+fld('影响说明','ndImpact','该节点卡住会影响什么',n.impact)+'</div>'+
     fldArea('备注','ndNote','批复文号 / 关键条件 / 前置依赖',n.note);
 }
 function openNodeAdd(){
@@ -415,7 +467,8 @@ function openNodeAdd(){
   openDrawer('新增关键节点',nodeForm(),function(){
     var nm=_v('ndName'); if(!nm){toast('请填写节点名称');return}
     nodeList().push({id:uid('n'),name:nm,plan:_v('ndPlan'),actual:_v('ndActual'),status:_chip('1'),
-      owner:_v('ndOwner')||'待指派',dep:_v('ndDep')||'—',impact:_v('ndImpact'),note:_v('ndNote')});
+      owner:_v('ndOwner')||'待指派',dep:_v('ndDep')||'—',impact:_v('ndImpact'),note:_v('ndNote'),
+      priority:_chip('3'),risk:_chip('4'),progress:Number(_v('ndProg'))||0});
     nodeList().sort(function(a,b){return new Date(a.plan)-new Date(b.plan)});
     saveDB(); closeDrawer(); toast('节点已新增：'+nm); renderDetail();
   },{priText:'保存节点'});
@@ -430,6 +483,9 @@ function openNodeView(i){
     '<div class="k">实际完成</div><div class="v mono">'+(n.actual||'—')+'</div>'+
     '<div class="k">责任人</div><div class="v">'+esc(n.owner)+'</div>'+
     '<div class="k">对接单位</div><div class="v">'+esc(n.dep)+'</div>'+
+    '<div class="k">优先级</div><div class="v">'+tag(n.priority||'中',(n.priority==='高'?'t-red':n.priority==='中'?'t-yel':'t-blu'))+'</div>'+
+    '<div class="k">风险等级</div><div class="v">'+tag(n.risk||'无',(n.risk==='高'?'t-red':n.risk==='中'?'t-yel':'t-grn'))+'</div>'+
+    '<div class="k">完成进度</div><div class="v">'+bar(n.progress!=null?n.progress:0)+' '+(n.progress!=null?n.progress:0)+'%</div>'+
     '<div class="k">影响</div><div class="v">'+esc(n.impact||'—')+'</div>'+
     '<div class="k">备注</div><div class="v">'+esc(n.note||'—')+'</div></div>'+
     '<div class="dsec">编辑</div>'+nodeForm(n)+
@@ -441,6 +497,7 @@ function openNodeView(i){
       if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
       n.name=_v('ndName')||n.name; n.plan=_v('ndPlan'); n.actual=_v('ndActual');
       n.status=_chip('1'); n.owner=_v('ndOwner'); n.dep=_v('ndDep');
+      n.priority=_chip('3'); n.risk=_chip('4'); n.progress=Number(_v('ndProg'))||0;
       n.impact=_v('ndImpact'); n.note=_v('ndNote');
       saveDB(); closeDrawer(); toast('节点已更新'); renderDetail();
     },{priText:'保存修改'});
@@ -508,8 +565,9 @@ function personForm(p){
   p=p||{};
   return '<div class="f2">'+fld('姓名','pfName','马建国',p.name)+fld('职务','pfTitle','副主任',p.title)+'</div>'+
     fld('所在单位/部门','pfOrg','甘肃省发展改革委 能源处',p.org)+
-    '<div class="field"><label>层级定位</label>'+chips('1',['决策','影响','执行'],p.level||'执行')+'</div>'+
+    '<div class="field"><label>决策层级（负责人定位）</label>'+chips('1',['决策','影响','执行'],p.level||'执行')+'</div>'+
     '<div class="f2">'+fld('联系电话','pfPhone','139****2210',p.phone)+fld('微信/其他','pfWx','—',p.wechat)+'</div>'+
+    '<div class="f2">'+fld('电子邮箱','pfEmail','name@company.com',p.email)+fld('所属项目角色','pfRole','对接 / 审批 / 经办',p.role||'对接')+'</div>'+
     '<div class="field"><label>关系温度（1 冷 → 5 热）</label>'+chips('2',['1','2','3','4','5'],String(p.heat||3))+'</div>'+
     '<div class="f2">'+fld('最近接触日','pfLast',todayStr(),p.last)+fld('下次接触计划','pfNext','2026-08-20',p.next)+'</div>'+
     fld('沟通偏好','pfPref','重数据 / 讲流程 / 要结论',p.pref)+
@@ -520,7 +578,7 @@ function openPersonAdd(){
   openDrawer('新增关键人 / 联系人',personForm(),function(){
     var n=_v('pfName'); if(!n){toast('请填写姓名');return}
     pplList().push({id:uid('p'),name:n,title:_v('pfTitle'),org:_v('pfOrg'),level:_chip('1'),
-      phone:_v('pfPhone')||'—',wechat:_v('pfWx')||'—',heat:Number(_chip('2'))||3,
+      phone:_v('pfPhone')||'—',wechat:_v('pfWx')||'—',email:_v('pfEmail')||'—',role:_v('pfRole')||'对接',heat:Number(_chip('2'))||3,
       last:_v('pfLast'),next:_v('pfNext'),pref:_v('pfPref'),note:_v('pfNote')});
     saveDB(); closeDrawer(); toast('已建档：'+n); renderDetail();
   },{priText:'保存联系人'});
@@ -530,9 +588,11 @@ function openPersonView(i){
   openDrawer(p.name+' · '+p.title,
     '<div class="dsec">档案</div><div class="kv">'+
     '<div class="k">单位</div><div class="v">'+esc(p.org)+'</div>'+
-    '<div class="k">层级</div><div class="v">'+tag(p.level,p.level==='决策'?'t-red':p.level==='影响'?'t-yel':'t-blu')+'</div>'+
+    '<div class="k">决策层级</div><div class="v">'+tag(p.level,p.level==='决策'?'t-red':p.level==='影响'?'t-yel':'t-blu')+'</div>'+
     '<div class="k">电话</div><div class="v mono">'+esc(p.phone)+'</div>'+
     '<div class="k">微信</div><div class="v">'+esc(p.wechat)+'</div>'+
+    '<div class="k">邮箱</div><div class="v">'+esc(p.email||'—')+'</div>'+
+    '<div class="k">项目角色</div><div class="v">'+esc(p.role||'—')+'</div>'+
     '<div class="k">关系温度</div><div class="v">'+heatBar(p.heat)+'</div>'+
     '<div class="k">最近接触</div><div class="v mono">'+(p.last||'—')+'</div>'+
     '<div class="k">下次计划</div><div class="v mono">'+(p.next||'—')+'</div>'+
@@ -546,7 +606,7 @@ function openPersonView(i){
     function(){
       if(!canEditProj(projById(curProject))){ toast('仅项目创建人或管理者可编辑本项目'); return; }
       p.name=_v('pfName')||p.name; p.title=_v('pfTitle'); p.org=_v('pfOrg'); p.level=_chip('1');
-      p.phone=_v('pfPhone'); p.wechat=_v('pfWx'); p.heat=Number(_chip('2'))||3;
+      p.phone=_v('pfPhone'); p.wechat=_v('pfWx'); p.email=_v('pfEmail'); p.role=_v('pfRole'); p.heat=Number(_chip('2'))||3;
       p.last=_v('pfLast'); p.next=_v('pfNext'); p.pref=_v('pfPref'); p.note=_v('pfNote');
       saveDB(); closeDrawer(); toast('档案已更新'); renderDetail();
     },{priText:'保存修改'});
@@ -640,6 +700,113 @@ function delOrg(i){
   if(!canDeleteBiz()){ toast('删除公司仅管理员可操作'); return; }
   if(!confirm('确定删除该公司档案？')) return;
   orgList().splice(i,1); saveDB(); closeDrawer(); toast('已删除'); renderDetail();
+}
+
+/* ---------- 机会 / 商机（CRM） ---------- */
+var OPP_FILTER='all';
+function oppFilterSet(f){ OPP_FILTER=f; document.querySelectorAll('#oppFilter button').forEach(function(b){b.classList.toggle('on',b.dataset.f===f);}); renderOpp(); }
+function oppStageCls(s){ return s==='中标'?'t-grn':s==='丢单'?'t-red':s==='商务谈判'?'t-cy':s==='商机'?'t-yel':s==='线索'?'t-blu':'t-gry'; }
+function oppLineShort(l){ return ({'新能源项目':'新能源','大交通机电':'大交通','网约车平台':'网约车','新能源车销售':'车辆销售'})[l]||l; }
+function renderOpp(){
+  if(!document.getElementById('oppList')) return;
+  var all=DB.opportunities||[];
+  var list=all.filter(function(o){
+    if(OPP_FILTER==='open') return (o.stage!=='中标'&&o.stage!=='丢单');
+    if(OPP_FILTER==='win') return o.stage==='中标';
+    if(OPP_FILTER==='lost') return o.stage==='丢单';
+    return true;
+  });
+  var openv=all.filter(function(o){return o.stage!=='中标'&&o.stage!=='丢单';});
+  var amtOpen=openv.reduce(function(a,o){return a+(o.amount||0)*(o.winRate||0)/100;},0);
+  var won=all.filter(function(o){return o.stage==='中标';}).reduce(function(a,o){return a+o.amount;},0);
+  var avgW=all.length?Math.round(all.reduce(function(a,o){return a+(o.winRate||0);},0)/all.length):0;
+  document.getElementById('oppKpi').innerHTML=
+    kpi('商机总数',all.length,'个','进行中 '+openv.length+' 个')+
+    kpi('加权预期金额',fmt(Math.round(amtOpen)),'万元','金额×赢单率','ok')+
+    kpi('已中标金额',fmt(won),'万元','转化合同后可回款','ok')+
+    kpi('平均赢单率',avgW,'%','商机质量',avgW>=50?'ok':'warn');
+  var stages=['线索','商机','商务谈判','中标','丢单'];
+  document.getElementById('oppBoard').innerHTML='<div class="oppboard">'+stages.map(function(s){
+    var items=all.filter(function(o){return o.stage===s;});
+    var sum=items.reduce(function(a,o){return a+(o.amount||0);},0);
+    return '<div class="oppcol oc-'+s+'"><div class="oh">'+s+' <span class="kc">'+items.length+'</span><span class="os">'+fmt(sum)+'万</span></div>'+
+      items.map(function(o){ return '<div class="oppcard" onclick="openOppView(\''+o.id+'\')"><div class="onm">'+esc(o.title)+'</div>'+
+        '<div class="ometa">'+esc(o.customer)+'</div>'+
+        '<div class="ometa mono">'+fmt(o.amount)+' 万 · 赢单 '+(o.winRate||0)+'%</div>'+
+        '<div class="ktags">'+tag(oppLineShort(o.line),'t-blu')+tag(o.owner,'t-gry')+'</div></div>';
+      }).join('')+'</div>';
+  }).join('')+'</div>';
+  document.getElementById('oppList').innerHTML = list.length? tbl('<th>商机名称</th><th>业务线</th><th>客户</th><th class="n">金额(万)</th><th>阶段</th><th>负责人</th><th>预计成交</th><th>赢单率</th><th></th>',
+    list.map(function(o){
+      var conv = o.projectId ? '<span class="tag t-grn">已转化</span>'
+        : (CUR_USER? '<button class="btn sm pri" onclick="event.stopPropagation();convertOpp(\''+o.id+'\')">转项目</button>' : '');
+      return '<tr onclick="openOppView(\''+o.id+'\')"><td class="nm">'+esc(o.title)+'</td>'+
+        '<td>'+esc(o.line)+'</td><td>'+esc(o.customer)+'</td><td class="n">'+fmt(o.amount)+'</td>'+
+        '<td>'+tag(o.stage,oppStageCls(o.stage))+'</td><td>'+esc(o.owner)+'</td><td class="mono">'+(o.expectClose||'—')+'</td>'+
+        '<td>'+(o.winRate||0)+'%</td><td>'+conv+'</td></tr>';
+    }).join('')) : '<div class="note">暂无商机。点击右上角新增。</div>';
+}
+function openOppAdd(){
+  if(!CUR_USER){ toast('请先登录'); return; }
+  var html=
+    '<div class="f2">'+fldSel('业务线','opLine',['新能源项目','大交通机电','网约车平台','新能源车销售'],'新能源项目')+fld('客户/单位','opCust','甘肃临港新能源开发有限公司')+'</div>'+
+    fld('商机名称','opTitle','如：临港二期 200MW 光伏')+
+    '<div class="f2">'+fld('预计金额(万元)','opAmt',0)+fld('负责人','opOwner','王磊')+'</div>'+
+    '<div class="f2">'+fldSel('阶段','opStage',['线索','商机','商务谈判','中标','丢单'],'商机')+fld('赢单率 %','opWin',50)+'</div>'+
+    '<div class="f2">'+fld('预计成交日','opClose',todayStr())+fld('来源/标签','opSrc','自主拓展')+'</div>'+
+    fldArea('备注','opNote','关键决策人 / 竞争态势 / 推进计划');
+  openDrawer('新增机会 / 商机',html,function(){
+    var t=_v('opTitle'); if(!t){toast('请填写商机名称');return;}
+    DB.opportunities=DB.opportunities||[];
+    DB.opportunities.unshift({id:uid('op'),title:t,line:_v('opLine'),customer:_v('opCust'),amount:Number(_v('opAmt'))||0,
+      stage:_v('opStage'),owner:_v('opOwner'),expectClose:_v('opClose'),winRate:Number(_v('opWin'))||0,
+      projectId:'',created:todayStr(),source:_v('opSrc'),note:_v('opNote')});
+    saveDB(); closeDrawer(); toast('商机已录入'); renderOpp();
+  },{priText:'保存商机'});
+}
+function openOppView(id){
+  var o=(DB.opportunities||[]).filter(function(x){return x.id===id})[0]; if(!o) return;
+  var proj=o.projectId?projById(o.projectId):null;
+  openDrawer('商机 · '+o.title,
+    '<div class="dsec">商机信息</div><div class="kv">'+
+    '<div class="k">业务线</div><div class="v">'+esc(o.line)+'</div>'+
+    '<div class="k">客户</div><div class="v">'+esc(o.customer)+'</div>'+
+    '<div class="k">金额</div><div class="v mono">'+fmt(o.amount)+' 万元</div>'+
+    '<div class="k">阶段</div><div class="v">'+tag(o.stage,oppStageCls(o.stage))+'</div>'+
+    '<div class="k">负责人</div><div class="v">'+esc(o.owner)+'</div>'+
+    '<div class="k">预计成交</div><div class="v mono">'+(o.expectClose||'—')+'</div>'+
+    '<div class="k">赢单率</div><div class="v">'+(o.winRate||0)+'%</div>'+
+    '<div class="k">转化项目</div><div class="v">'+(proj?esc(proj.name):'—')+'</div>'+
+    '<div class="k">备注</div><div class="v">'+esc(o.note||'—')+'</div></div>'+
+    '<div class="dsec">编辑</div>'+
+    '<div class="f2">'+fld('名称','opTitle',o.title)+fld('客户','opCust',o.customer)+'</div>'+
+    '<div class="f2">'+fldSel('业务线','opLine',['新能源项目','大交通机电','网约车平台','新能源车销售'],o.line)+fld('金额(万)','opAmt',o.amount)+'</div>'+
+    '<div class="f2">'+fldSel('阶段','opStage',['线索','商机','商务谈判','中标','丢单'],o.stage)+fld('赢单率 %','opWin',o.winRate||0)+'</div>'+
+    fldArea('备注','opNote','推进计划 / 竞争态势',o.note)+
+    '<div class="dsec">快捷动作</div><div class="chips">'+
+    (o.projectId?'<span class="chip" onclick="goDetail(\''+o.projectId+'\')">查看转化项目</span>':
+      (CUR_USER?'<span class="chip" onclick="convertOpp(\''+o.id+'\')">转为项目</span>':'<span class="chip" style="opacity:.5">登录后可转化</span>'))+
+    '</div>',
+    function(){
+      if(!CUR_USER){ toast('请先登录'); return; }
+      o.title=_v('opTitle')||o.title; o.customer=_v('opCust'); o.line=_v('opLine');
+      o.amount=Number(_v('opAmt'))||0; o.stage=_v('opStage'); o.winRate=Number(_v('opWin'))||0; o.note=_v('opNote');
+      saveDB(); closeDrawer(); toast('商机已更新'); renderOpp();
+    },{priText:'保存修改'});
+}
+function convertOpp(id){
+  var o=(DB.opportunities||[]).filter(function(x){return x.id===id})[0]; if(!o) return;
+  if(o.projectId){ toast('该商机已转化为项目'); goDetail(o.projectId); return; }
+  if(!canAddProject()){ toast('请先登录后再转化'); return; }
+  if(!confirm('将商机「'+o.title+'」转化为正式项目？转化后可在项目详情中继续推进节点与合同。')) return;
+  var typeMap={'新能源项目':'光伏','大交通机电':'机电工程','网约车平台':'网约车','新能源车销售':'车辆销售'};
+  var pid=uid('prj');
+  DB.projects.push({id:pid,name:o.title,line:oppLineShort(o.line),type:typeMap[o.line]||o.line,
+    city:'',owner:o.owner,stage:o.stage==='中标'?'签约启动':'洽谈推进',addr:'',invTotal:o.amount,invDone:0,progress:0,status:'推进中',
+    risk:[],note:'由商机【'+o.title+'】转化',geo:{lng:103.8,lat:36.0},updated:todayStr(),createdBy:CUR_USER.id});
+  DB.nodes[pid]=[]; DB.people[pid]=[]; DB.orgs[pid]=[{id:uid('o'),name:o.customer,type:'业主/项目公司',role:'商机客户',contact:o.owner,phone:'—',amount:o.amount,credit:'—',status:'合作中',note:'由商机转化'}];
+  o.projectId=pid; if(o.stage!=='中标') o.stage='商务谈判';
+  saveDB(); closeDrawer(); toast('已转化为项目：'+o.title); renderOpp(); renderProjNav(); goDetail(pid);
 }
 
 /* ---------- 项目合同 ---------- */

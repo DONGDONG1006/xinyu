@@ -26,7 +26,7 @@ function kpi(k,v,unit,d,cls,onclick){
 
 /* ---------------- 导航 ---------------- */
 var PAGE_SUB={dash:'经营驾驶舱',newenergy:'新能源项目',transport:'大交通机电',ride:'网约车平台',
-  sales:'车辆销售',contract:'合同管理',fin:'业务财务',run:'跑动作战台',staff:'业务人员管理',map:'项目地图',detail:'项目详情',admin:'平台管理',expense:'费用报销',approval:'审批中心'};
+  sales:'车辆销售',contract:'合同管理',fin:'业务财务',run:'跑动作战台',staff:'业务人员管理',map:'项目地图',detail:'项目详情',admin:'平台管理',expense:'费用报销',approval:'审批中心',opportunity:'机会商机'};
 function go(page){
   document.querySelectorAll('section[id^="p-"]').forEach(function(s){s.classList.add('hide')});
   var el=document.getElementById('p-'+page); if(el) el.classList.remove('hide');
@@ -36,7 +36,7 @@ function go(page){
   document.getElementById('side').classList.remove('open');
   window.scrollTo(0,0);
   var R={dash:renderDash,newenergy:renderNewEnergy,transport:renderTransport,ride:renderRide,
-    sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin,expense:renderExpense,approval:renderApproval};
+    sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin,expense:renderExpense,approval:renderApproval,opportunity:renderOpp};
   if(R[page]) R[page]();
   /* v5.0：为每个功能页刷新关键信息摘要条 */
   if(typeof renderDigest==='function') renderDigest(page);
@@ -680,34 +680,109 @@ function openReimbApply(){
   var related=(DB.applications||[]).filter(function(a){return (a.type==='trip'||a.type==='ent')&&a.status==='approved';});
   var relOpts=['（无）'].concat(related.map(function(a){return a.title+' ['+a.id+']';}));
   var html=
-    '<div class="note" style="margin-bottom:8px">报销可关联已通过的出差 / 招待申请（可选）。报销明细按科目填写，合计自动计算。</div>'+
+    '<div class="note" style="margin-bottom:8px">报销可关联已通过的出差 / 招待申请（可选）。按发票逐张录入，系统自动核算合计，支持<b>发票查验</b>与<b>一键打印报销单</b>。</div>'+
     '<div class="f2">'+fldSel('业务线','rmLine',['新能源','大交通','网约车','车辆销售'],'新能源')+
       fldSel('关联项目','rmProj',['（不关联）'].concat(DB.projects.map(function(p){return p.name})),'（不关联）')+'</div>'+
     fldSel('关联申请','rmRel',relOpts,'（无）')+
-    '<div class="sect" style="margin:8px 0 4px">费用明细（元）</div>'+
-    '<div class="f2">'+fld('交通费','rmT',0)+fld('住宿费','rmH',0)+'</div>'+
-    '<div class="f2">'+fld('餐饮招待费','rmM',0)+fld('办公及其他','rmO',0)+'</div>'+
-    '<div class="f2">'+fld('借款/预付款抵扣','rmAdv',0)+fld('报销合计(元)','rmSum','提交后生成')+'</div>'+
-    fldArea('说明','rmNote','发票号 / 费用说明');
+    '<div class="sect" style="margin:8px 0 4px">发票明细 <button class="btn sm pri" onclick="addInvRow()" style="margin-left:8px">＋ 添加发票</button></div>'+
+    '<div id="rmItems" class="invlst"></div>'+
+    '<div class="rflex"><span>借款 / 预付款抵扣（元）</span>'+fld('','rmAdv',0)+'</div>'+
+    '<div class="rflex"><span>报销合计（元）</span><input id="rmSum" class="rof" readonly value="0"></div>'+
+    fldArea('说明','rmNote','费用说明 / 出差事由');
   openDrawer('报销申请',html,function(){
-    var t=Number(_v('rmT'))||0,h=Number(_v('rmH'))||0,m=Number(_v('rmM'))||0,o=Number(_v('rmO'))||0;
-    var total=t+h+m+o, adv=Number(_v('rmAdv'))||0;
-    if(!total){ toast('请至少填写一项费用'); return; }
+    var items=collectReimbItems();
+    if(!items.length){ toast('请至少录入一张发票'); return; }
+    var total=items.reduce(function(a,x){return a+x.amount},0);
+    var adv=Number(_v('rmAdv'))||0;
     var pn=_v('rmProj'), pid=(DB.projects.filter(function(p){return p.name===pn})[0]||{}).id||'';
     var rel=_v('rmRel'), rid = (rel&&rel!=='（无）')? rel.slice(rel.lastIndexOf('[')+1,-1):'';
     DB.applications=DB.applications||[];
     DB.applications.unshift({id:uid('ap'),type:'reimb',title:_v('rmNote')?('报销：'+_v('rmNote').slice(0,12)):'费用报销',
       applicant:CUR_USER.username,applicantName:CUR_USER.name,line:_v('rmLine'),projectId:pid,
       status:'pending',createdAt:todayStr(),submitAt:todayStr(),relatedId:rid,advance:adv,
-      items:[
-        {category:'交通费',amount:t,note:_v('rmNote'),invoiceNo:''},
-        {category:'住宿费',amount:h,note:'',invoiceNo:''},
-        {category:'餐饮招待费',amount:m,note:'',invoiceNo:''},
-        {category:'办公及其他',amount:o,note:'',invoiceNo:''}
-      ].filter(function(x){return x.amount>0;}),
-      total:total,amount:total,note:_v('rmNote')});
+      items:items,total:total,amount:total,note:_v('rmNote')});
     saveDB(); closeDrawer(); toast('报销申请已提交，待审批'); renderExpense();
   },{priText:'提交申请'});
+  addInvRow();
+}
+function addInvRow(type,code,no,amount,note){
+  var r=document.createElement('div'); r.className='invrow';
+  var types=['增值税专用发票','增值税普通发票','电子发票','收据/其他'];
+  r.innerHTML='<select data-f="type">'+types.map(function(t){return '<option'+(t===(type||'增值税专用发票')?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'+
+    '<input data-f="code" placeholder="发票代码" value="'+(code||'')+'">'+
+    '<input data-f="no" placeholder="发票号码" value="'+(no||'')+'">'+
+    '<input data-f="amount" placeholder="金额(元)" value="'+(amount||'')+'" oninput="calcReimbTotal()">'+
+    '<input data-f="note" placeholder="摘要" value="'+(note||'')+'">'+
+    '<button class="btn sm dgr" onclick="this.parentNode.remove();calcReimbTotal()">✕</button>';
+  var box=document.getElementById('rmItems'); if(box) box.appendChild(r);
+}
+function collectReimbItems(){
+  var items=[];
+  document.querySelectorAll('#rmItems .invrow').forEach(function(r){
+    var type=r.querySelector('[data-f="type"]').value;
+    var code=(r.querySelector('[data-f="code"]').value||'').trim();
+    var no=(r.querySelector('[data-f="no"]').value||'').trim();
+    var amount=Number(r.querySelector('[data-f="amount"]').value)||0;
+    var note=(r.querySelector('[data-f="note"]').value||'').trim();
+    if(amount>0||code||no) items.push({type:type,code:code,no:no,amount:amount,note:note,verified:false});
+  });
+  return items;
+}
+function calcReimbTotal(){ var s=0; document.querySelectorAll('#rmItems .invrow [data-f="amount"]').forEach(function(e){s+=Number(e.value)||0}); var t=document.getElementById('rmSum'); if(t)t.value=s; }
+function reimbItemRows(a){
+  return (a.items||[]).map(function(it,idx){
+    var type=it.type||it.category||'费用';
+    var code=it.code||'';
+    var no=it.no||it.invoiceNo||'';
+    var amt=it.amount||0;
+    var note=it.note||'';
+    var verified=!!it.verified;
+    return '<div class="li"><div class="t">'+esc(type)+(no?' <span class="mono">'+esc(no)+'</span>':'')+'<div class="s">'+esc(note||'')+(code?' · 代码 '+esc(code):'')+'</div></div>'+
+      '<div class="mono" style="color:var(--txt)">'+yuan(amt)+'</div>'+
+      (a.status==='pending'||a.status==='approved'
+        ? '<button class="btn sm '+(verified?'':'pri')+'" onclick="verifyInvoice(\''+a.id+'\','+idx+')">'+(verified?'✓ 已查验':'核验')+'</button>'
+        : (verified?'<span class="tag t-grn">已查验</span>':''))+'</div>';
+  }).join('');
+}
+function verifyInvoice(appId,idx){
+  var a=(DB.applications||[]).filter(function(x){return x.id===appId})[0]; if(!a||!a.items[idx]) return;
+  var it=a.items[idx];
+  /* 模拟发票查验：校验发票代码/号码格式 + 必填，返回查验结果（无真实税局接口） */
+  if(!it.code||!it.no){ toast('请先填写发票代码与号码'); return; }
+  if(!/^[0-9A-Za-z]{8,20}$/.test(it.no)){ it.verifyResult='查验未通过：发票号码格式异常'; it.verified=false; }
+  else { it.verified=true; it.verifyResult='查验通过（模拟）'; it.verifyDate=todayStr(); }
+  saveDB(); toast(it.verified?'发票查验通过':'查验未通过，请核对'); openAppView(appId);
+}
+function verifyAllInvoice(appId){
+  var a=(DB.applications||[]).filter(function(x){return x.id===appId})[0]; if(!a) return;
+  var ok=0,bad=0;
+  (a.items||[]).forEach(function(it){
+    if(!it.code||!it.no){ bad++; return; }
+    if(/^[0-9A-Za-z]{8,20}$/.test(it.no)){ it.verified=true; it.verifyResult='查验通过（模拟）'; it.verifyDate=todayStr(); ok++; }
+    else { it.verified=false; it.verifyResult='查验未通过：发票号码格式异常'; bad++; }
+  });
+  saveDB(); toast('批量查验完成：通过 '+ok+' / 异常 '+bad); openAppView(appId);
+}
+function printReimbDoc(appId){
+  var a=(DB.applications||[]).filter(function(x){return x.id===appId})[0]; if(!a) return;
+  var items=a.items||[];
+  var rows=items.map(function(it,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(it.type||it.category||'费用')+'</td><td>'+esc(it.code||'')+'</td><td>'+esc(it.no||it.invoiceNo||'')+'</td>'+
+      '<td style="text-align:right">'+yuan(it.amount||0)+'</td><td>'+esc(it.note||'')+'</td><td>'+(it.verified?'已查验':'未查验')+'</td></tr>';
+  }).join('');
+  var total=(a.total||0), adv=(a.advance||0), payable=total-adv;
+  var html='<div class="rdoc">'+
+    '<div class="rhead"><div class="rlogo">'+xyLogo('prt')+'</div><div><div class="rt">甘肃新煜科技 · 费用报销单</div><div class="rs">EXPENSE REIMBURSEMENT FORM</div></div></div>'+
+    '<div class="rmeta"><div><span>申请人</span><b>'+esc(a.applicantName||'')+'</b></div><div><span>业务线</span><b>'+esc(a.line||'')+'</b></div>'+
+      '<div><span>关联项目</span><b>'+esc(a.projectId?projName(a.projectId):'—')+'</b></div><div><span>申请日期</span><b>'+esc(a.submitAt||todayStr())+'</b></div></div>'+
+    '<div class="rtitle">报销事由：'+esc(a.title||a.note||'')+'</div>'+
+    '<table class="rtbl"><thead><tr><th>序号</th><th>发票类型</th><th>发票代码</th><th>发票号码</th><th>金额(元)</th><th>摘要</th><th>查验</th></tr></thead><tbody>'+rows+'</tbody>'+
+      '<tfoot><tr><td colspan="4" style="text-align:right">合计</td><td style="text-align:right">'+yuan(total)+'</td><td colspan="2"></td></tr></tfoot></table>'+
+    '<div class="rsum">借款/预付款抵扣：'+yuan(adv)+'　|　实付金额：'+yuan(payable)+'</div>'+
+    '<div class="rsign"><div><span>申请人签字</span><br>　　　　　　</div><div><span>部门审核</span><br>　　　　　　</div><div><span>财务复核</span><br>　　　　　　</div><div><span>领导审批</span><br>　　　　　　</div></div>'+
+    '<div class="rn">本单据由「甘肃新煜科技工作台」生成 · 单号 '+esc(a.id)+' · 打印时间 '+new Date().toLocaleString('zh-CN')+'</div>'+
+    '</div>';
+  var pa=document.getElementById('printArea'); if(pa){ pa.innerHTML=html; setTimeout(function(){ window.print(); },80); }
 }
 
 /* ---------- 申请详情（只读 + 审批流） ---------- */
@@ -722,9 +797,11 @@ function openAppView(id){
     info='<div class="kv">'+appKv('招待对象',a.guest)+appKv('人数',(a.headcount||0)+' 人')+appKv('预估费用',yuan(a.estAmount))+appKv('事由',a.reason)+'</div>';
   } else {
     var rel=(DB.applications.filter(function(x){return x.id===a.relatedId})[0]||{}).title||'—';
-    var itemRows=(a.items||[]).map(function(it){return '<div class="li"><div class="t">'+esc(it.category)+'<div class="s">'+(it.note||'')+'</div></div><div class="mono" style="color:var(--txt)">'+yuan(it.amount)+'</div></div>';}).join('');
     info='<div class="kv">'+appKv('关联申请',rel)+appKv('借款抵扣',yuan(a.advance||0))+appKv('报销合计',yuan(a.total))+appKv('应付金额',yuan((a.total||0)-(a.advance||0)))+'</div>'+
-      '<div class="sect" style="margin:8px 0 4px">费用明细</div><div class="card" style="border:0;background:transparent;padding:0">'+itemRows+'</div>';
+      '<div class="sect" style="margin:8px 0 4px">发票明细（共 '+(a.items||[]).length+' 张）</div><div class="card" style="border:0;background:transparent;padding:0">'+reimbItemRows(a)+'</div>'+
+      '<div class="dsec">快捷动作</div><div class="chips">'+
+      '<span class="chip" onclick="printReimbDoc(\''+a.id+'\')">🖨 一键打印报销单</span>'+
+      '<span class="chip" onclick="verifyAllInvoice(\''+a.id+'\')">全部查验</span></div>';
   }
   var flow='<div class="flow">'+
     appFlowStep('y','提交申请',a.applicantName+' · '+a.submitAt)+
@@ -1074,7 +1151,39 @@ function renderFinBody(){
           '<td>'+tag(r>100?'超预算':r>90?'临界':'受控',r>100?'t-red':r>90?'t-yel':'t-grn')+'</td></tr>';
       }).join(''))+'</div></div>';
   }
+  else if(finT==='invoice'){
+    var IN=DB.invoices||[];
+    var sumAmt=IN.reduce(function(a,x){return a+(x.amount||0)},0);
+    var sumTax=IN.reduce(function(a,x){return a+(x.tax||0)},0);
+    var byStatus={}; IN.forEach(function(x){ byStatus[x.status]=(byStatus[x.status]||0)+(x.amount||0); });
+    h+='<div class="grid kpis" style="margin-bottom:12px">'+
+      kpi('开票总张数',IN.length,'张','已开/寄/待开合计')+
+      kpi('开票总额',fmt(sumAmt),'万元','不含税口径见明细','ok')+
+      kpi('税额合计',fmt(Math.round(sumTax)),'万元','增值税合计','ok')+
+      kpi('已寄/已开',fmt((byStatus['已开']||0)+(byStatus['已寄']||0)),'万元','在途回款依据','ok')+
+      '</div>';
+    h+='<div class="note" style="margin-bottom:10px"><b>业财联动：</b>开票由「合同管理 → 合同详情 → ＋ 登记开票」生成，自动回写合同已开票额，并作为回款（应收）的确认依据。项目推进 → 合同签订 → 开票 → 回款 形成闭环。</div>';
+    h+='<div class="card scroll"><div class="sect" style="margin:0 0 8px">开票台账</div>'+
+      (IN.length? tbl('<th>开票编号</th><th>关联合同</th><th>相对方</th><th class="n">金额(万)</th><th class="n">税额(万)</th><th>类型</th><th>状态</th><th>开票日</th><th></th>',
+        IN.map(function(x){
+          return '<tr onclick="openContractView(\''+x.contractId+'\')"><td class="mono">'+esc(x.no)+'</td>'+
+            '<td class="mono">'+esc(x.contractCode||'—')+'</td><td>'+esc(x.party)+'</td>'+
+            '<td class="n">'+(x.amount?fmt(x.amount):'—')+'</td><td class="n">'+(x.tax?fmt(x.tax):'—')+'</td>'+
+            '<td>'+esc(x.type||'—')+'</td><td>'+tag(x.status,x.status==='已寄'?'t-grn':x.status==='已开'?'t-cy':x.status==='待开'?'t-yel':'t-red')+'</td>'+
+            '<td class="mono">'+(x.issueDate||'—')+'</td>'+
+            '<td><button class="btn sm" onclick="event.stopPropagation();setInvoiceStatus(\''+x.id+'\')">状态</button></td></tr>';
+        }).join('')) : '<div class="note">暂无开票记录。在「合同管理」中打开任意合同，点「＋ 登记开票」即可生成。</div>')+'</div>';
+  }
   box.innerHTML=h;
+}
+function setInvoiceStatus(id){
+  var x=(DB.invoices||[]).filter(function(i){return i.id===id})[0]; if(!x) return;
+  openDrawer('开票状态 · '+x.no,
+    '<div class="kv"><div class="k">相对方</div><div class="v">'+esc(x.party)+'</div><div class="k">金额</div><div class="v mono">'+fmt(x.amount)+' 万元</div>'+
+      '<div class="k">当前状态</div><div class="v">'+tag(x.status,x.status==='已寄'?'t-grn':x.status==='已开'?'t-cy':x.status==='待开'?'t-yel':'t-red')+'</div></div>'+
+    '<div class="field"><label>更新状态</label>'+chips('1',['待开','已开','已寄','已红冲'],x.status)+'</div>'+
+    fld('寄送/回执日期','ivSDate',todayStr()),
+    function(){ x.status=_chip('1'); saveDB(); toast('开票状态已更新'); renderFin(); },{priText:'保存'});
 }
 function cashFlowTable(dir){
   var rows=duePlans(90).filter(function(x){return x.c.dir===dir});
@@ -1241,3 +1350,17 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
 }
+
+/* 可安装 APP：捕获 beforeinstallprompt（安卓 Chrome / 鸿蒙 华为浏览器 / 桌面），展示安装横幅 */
+var _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault(); _deferredPrompt=e;
+  var b=document.getElementById('installBanner'); if(b) b.classList.add('on');
+});
+window.addEventListener('appinstalled',function(){ var b=document.getElementById('installBanner'); if(b) b.classList.remove('on'); });
+var _ibGo=document.getElementById('ibGo');
+if(_ibGo){ _ibGo.addEventListener('click',function(){
+  if(_deferredPrompt){ _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(function(){ _deferredPrompt=null; var b=document.getElementById('installBanner'); if(b) b.classList.remove('on'); }); }
+  else { toast('请使用浏览器菜单「添加到主屏幕 / 安装」完成安装'); }
+}); }

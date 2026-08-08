@@ -729,3 +729,91 @@ input::placeholder,textarea::placeholder{color:#4d5c78}
   background:linear-gradient(90deg,#ff8c1a,#ffb347);animation:splashBar .9s ease-in-out infinite alternate}
 @keyframes splashBar{from{transform:translateX(-80%)}to{transform:translateX(280%)}}
 
+/* ============ 节点看板（CRM 管控） ============ */
+.kanban{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;overflow-x:auto;padding-bottom:6px}
+.kcol{background:rgba(255,140,26,.04);border:1px solid var(--line);border-radius:12px;padding:8px;min-width:150px}
+.kcol.kc-done{background:rgba(25,195,125,.07)}
+.kcol.kc-late,.kcol.kc-block{background:rgba(255,71,87,.07)}
+.kh{font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.kh .kc{background:rgba(255,140,26,.16);color:#8beeff;border-radius:10px;padding:0 7px;font-size:11px}
+.kcard{background:var(--kpi-bg);border:1px solid var(--line2);border-radius:10px;padding:8px;margin-bottom:8px;cursor:pointer;transition:.16s}
+.kcard:hover{border-color:rgba(255,140,26,.5)}
+.kn{font-size:12.5px;color:var(--txt);font-weight:600;margin-bottom:4px}
+.kmeta{display:flex;justify-content:space-between;font-size:11px;color:var(--txt3);margin-bottom:5px}
+.ktags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.kprog{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--txt3)}
+.kprog .bar{flex:1}
+
+/* ============ 机会 / 商机管道看板 ============ */
+.oppboard{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;overflow-x:auto;padding-bottom:6px}
+.oppcol{background:rgba(255,140,26,.04);border:1px solid var(--line);border-radius:12px;padding:8px;min-width:150px}
+.oppcol.oc-中标{background:rgba(25,195,125,.07)}
+.oppcol.oc-丢单{background:rgba(120,120,130,.08)}
+.oh{font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.oh .kc{background:rgba(255,140,26,.16);color:#8beeff;border-radius:10px;padding:0 7px;font-size:11px}
+.oh .os{font-size:10.5px;color:var(--txt3)}
+.oppcard{background:var(--kpi-bg);border:1px solid var(--line2);border-radius:10px;padding:9px;margin-bottom:8px;cursor:pointer;transition:.16s}
+.oppcard:hover{border-color:rgba(255,140,26,.5)}
+.onm{font-size:13px;color:var(--txt);font-weight:600;margin-bottom:4px}
+.ometa{font-size:11px;color:var(--txt3);margin-bottom:3px}
+
+/* ============ 报销发票录入 ============ */
+.invlst{display:flex;flex-direction:column;gap:7px;margin-bottom:6px}
+.invrow{display:grid;grid-template-columns:1.05fr .95fr .95fr .75fr 1.3fr auto;gap:6px;align-items:center}
+.invrow select,.invrow input{padding:8px 9px;border-radius:8px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:var(--txt);font-size:12.5px;width:100%;min-width:0}
+.rflex{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0}
+.rflex>span{font-size:12.5px;color:var(--txt3);white-space:nowrap}
+.rflex input{flex:1;max-width:220px;padding:8px 10px;border-radius:8px;border:1px solid var(--line2);background:rgba(255,255,255,.05);color:var(--txt)}
+.rof{font-weight:700;color:var(--cy);text-align:right;font-family:var(--mono)}
+
+/* ============ 报销单打印 ============ */
+#printArea{display:none}
+.rdoc{max-width:780px;margin:0 auto;background:#fff;color:#111;padding:26px 30px;font-size:13px;line-height:1.55}
+.rdoc .rhead{display:flex;align-items:center;gap:12px;border-bottom:2px solid #ff8c1a;padding-bottom:12px}
+.rdoc .rlogo{width:46px;height:46px;flex:none}
+.rdoc .rlogo svg{width:100%;height:100%}
+.rdoc .rt{font-size:18px;font-weight:700;color:#ff6b35}
+.rdoc .rs{font-size:10px;color:#888;letter-spacing:1px}
+.rdoc .rmeta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.rdoc .rmeta>div{font-size:12px;color:#555}
+.rdoc .rmeta span{display:block;color:#999;font-size:10.5px;margin-bottom:2px}
+.rdoc .rmeta b{color:#111;font-weight:600}
+.rdoc .rtitle{background:#fff4e8;padding:8px 10px;border-radius:6px;margin-bottom:10px;color:#7a3b00}
+.rdoc .rtbl{width:100%;border-collapse:collapse;margin-bottom:8px}
+.rdoc .rtbl th,.rdoc .rtbl td{border:1px solid #ddd;padding:6px 8px;font-size:12px;text-align:left}
+.rdoc .rtbl th{background:#fff1e3;color:#7a3b00}
+.rdoc .rtbl tfoot td{font-weight:700}
+.rdoc .rsum{text-align:right;font-size:13px;margin:8px 0;color:#333}
+.rdoc .rsign{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px;font-size:12px}
+.rdoc .rsign span{display:block;color:#999;margin-bottom:20px}
+.rdoc .rn{margin-top:18px;font-size:10px;color:#aaa;text-align:center}
+
+/* ============ 移动端适配（iOS / 鸿蒙 / 安卓） ============ */
+html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,.btn,.chip,.nav,.b,.seg button{min-height:40px}
+.bottomnav .b{min-height:50px}
+.main,.scroll,.card.scroll{-webkit-overflow-scrolling:touch}
+.side,.topbar,.bottomnav,.nav,.b,.btn,.chip,.seg,.kpi,.apptag{-webkit-user-select:none;user-select:none}
+/* 鸿蒙 / 安卓：去除系统长按选择菜单与高亮 */
+*{-webkit-touch-callout:none}
+.install-banner{position:fixed;left:12px;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:60;
+  background:linear-gradient(135deg,#ff8c1a,#ff6b35);color:#1a1006;border-radius:14px;padding:11px 14px;display:none;
+  align-items:center;gap:10px;box-shadow:0 10px 30px rgba(255,107,53,.4)}
+.install-banner.on{display:flex}
+.install-banner .ib-t{font-size:13px;font-weight:700;flex:1;line-height:1.3}
+.install-banner .ib-x{background:rgba(0,0,0,.15);border:0;border-radius:8px;color:#1a1006;padding:6px 10px;font-size:12px}
+.install-banner .ib-go{background:#1a1006;color:#ffb347;border:0;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700}
+@media(max-width:520px){
+  .invrow{grid-template-columns:1fr 1fr;gap:6px}
+  .invrow select,.invrow input{grid-column:span 1}
+  .invrow .btn{grid-column:1 / -1}
+  .rdoc{padding:16px}
+  .rdoc .rmeta{grid-template-columns:repeat(2,1fr)}
+}
+@media print{
+  body{background:#fff !important;color:#000 !important}
+  .side,.bottomnav,.topbar,.drawer,.mask,.toast,.aifab,.aipanel,.splash,.install-banner,.main{display:none !important}
+  #printArea{display:block !important}
+  .rdoc{box-shadow:none;padding:0}
+}
+

@@ -90,6 +90,7 @@
       <div class="nav" data-page="fin"><span class="ic">¥</span>业务财务</div>
       <div class="nav" data-page="run"><span class="ic">➤</span>跑动作战台<span class="badge" id="navRun">0</span></div>
       <div class="nav" data-page="staff"><span class="ic">⚑</span>业务人员</div>
+      <div class="nav" data-page="opportunity"><span class="ic">✦</span>机会商机</div>
       <div class="nav" data-page="expense"><span class="ic">¥</span>费用报销</div>
       <div class="nav" data-page="approval"><span class="ic">✓</span>审批中心</div>
     </div>
@@ -265,6 +266,7 @@
           <button data-t="pl">经营损益</button>
           <button data-t="ar">应收</button>
           <button data-t="ap">应付</button>
+          <button data-t="invoice">开票</button>
           <button data-t="cash">资金</button>
           <button data-t="tax">税务预算</button>
         </div>
@@ -326,6 +328,27 @@
 
       <div class="sect" style="margin-top:18px">人员绩效排名 <span class="tip">合同额(收) / 业务费用 · 效率比越高越优</span></div>
       <div class="card"><div id="stPerf"></div></div>
+    </section>
+
+    <!-- ============ 机会 / 商机（CRM） ============ -->
+    <section id="p-opportunity" class="hide">
+      <div class="ptitle"><h1>机会 / 商机</h1><span class="sub">CRM 线索 → 中标 全漏斗管控</span>
+        <div class="spacer"></div>
+        <span class="tip" style="margin-left:auto">
+          <span class="seg" id="oppFilter">
+            <button class="on" data-f="all" onclick="oppFilterSet('all')">全部</button>
+            <button data-f="open" onclick="oppFilterSet('open')">进行中</button>
+            <button data-f="win" onclick="oppFilterSet('win')">已中标</button>
+            <button data-f="lost" onclick="oppFilterSet('lost')">已丢单</button>
+          </span>
+        </span>
+        <button class="btn pri" onclick="openOppAdd()">＋ 新增机会</button>
+      </div>
+      <div class="grid kpis" id="oppKpi"></div>
+      <div class="sect">商机管道看板 <span class="tip">点击卡片查看详情或转为项目</span></div>
+      <div class="card scroll"><div id="oppBoard"></div></div>
+      <div class="sect" style="margin-top:14px">商机台账</div>
+      <div class="card scroll"><div id="oppList"></div></div>
     </section>
 
     <!-- ============ 项目详情 ============ -->
@@ -436,6 +459,7 @@
     <div class="b" data-page="map"><span class="ei">⊕</span>地图</div>
     <div class="b" data-page="detail"><span class="ei">▦</span>项目</div>
     <div class="b" data-page="expense"><span class="ei">¥</span>费用</div>
+    <div class="b" data-page="opportunity"><span class="ei">✦</span>机会</div>
     <div class="b" data-page="approval"><span class="ei">✓</span>审批</div>
   </nav>
 </div>
@@ -475,6 +499,12 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div id="printArea" style="display:none"></div>
+<div class="install-banner" id="installBanner">
+  <div class="ib-t">安装「新煜工作台」到主屏幕，随时离线办公</div>
+  <button class="ib-x" onclick="document.getElementById('installBanner').classList.remove('on')">稍后</button>
+  <button class="ib-go" id="ibGo">安装</button>
+</div>
 
 <!-- 登录网关（账号 / 密码） -->
 <div class="logingate hide" id="loginGate"></div>

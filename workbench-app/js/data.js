@@ -319,6 +319,27 @@ function seed(){
         guest:'网约车公司采购负责人',reason:'车辆销售客情维护',headcount:6,estAmount:8000,amount:8000}
     ],
 
+    /* ---------------- 机会 / 商机（CRM 线索→中标漏斗） ---------------- */
+    /* stage 管道：线索 → 商机 → 商务谈判 → 中标 → 丢单
+       line：新能源项目 / 大交通机电 / 网约车平台 / 新能源车销售
+       amount 单位：万元；winRate 赢单率(%)；projectId 转化后回填项目 id */
+    opportunities:[
+      {id:'op1',title:'临港二期 200MW 光伏治沙',line:'新能源项目',customer:'甘肃临港新能源开发有限公司',amount:68000,stage:'商机',owner:'王磊',expectClose:'2026-12-31',winRate:55,projectId:'',created:'2026-08-01',note:'消纳指标落实后启动二期指标竞配'},
+      {id:'op2',title:'G30 第二标段机电工程',line:'大交通机电',customer:'甘肃省交通建设集团有限公司',amount:9600,stage:'商务谈判',owner:'刘洋',expectClose:'2026-10-31',winRate:70,projectId:'',created:'2026-07-20',note:'先推动第三期进度款申报，再谈二标段'},
+      {id:'op3',title:'白银国省干线机电',line:'大交通机电',customer:'白银市交通投资集团',amount:3200,stage:'线索',owner:'周强',expectClose:'2027-03-31',winRate:30,projectId:'',created:'2026-08-05',note:'商机拓展中，跟岗培养'},
+      {id:'op4',title:'网约车公司第二批 200 台车',line:'新能源车销售',customer:'甘肃畅行出行服务有限公司',amount:7200,stage:'中标',owner:'孙浩',expectClose:'2026-11-30',winRate:85,projectId:'',created:'2026-07-10',note:'已口头中标，待签销售合同'},
+      {id:'op5',title:'市区充电场站二期扩容',line:'新能源项目',customer:'国网兰州供电公司',amount:2600,stage:'商机',owner:'赵敏',expectClose:'2026-11-15',winRate:60,projectId:'',created:'2026-08-03',note:'结合司机购车协同，运营方有扩容意愿'}
+    ],
+
+    /* ---------------- 开票（关联合同，与财务回款联动） ---------------- */
+    /* amount / tax 单位：万元；type：增值税专用发票 / 普通发票
+       status：待开 / 已开 / 已寄 / 已红冲 */
+    invoices:[
+      {id:'iv1',no:'INV-2026-08-001',contractId:'c1',contractCode:'HT-2025-G30-01',party:'甘肃省交通建设集团有限公司',amount:1760,tax:158.4,type:'增值税专用发票',status:'已开',issueDate:'2026-08-14',dueDate:'2026-08-20',note:'第四期进度款发票'},
+      {id:'iv2',no:'INV-2026-08-002',contractId:'c6',contractCode:'HT-2026-CS-08',party:'甘肃畅行出行服务有限公司',amount:1080,tax:124.2,type:'增值税专用发票',status:'已寄',issueDate:'2026-07-15',dueDate:'2026-07-20',note:'首批 60 台车款'},
+      {id:'iv3',no:'INV-2026-08-003',contractId:'c2',contractCode:'HT-2026-LG-D01',party:'甘肃省电力设计院',amount:258,tax:14.6,type:'增值税专用发票',status:'待开',issueDate:'',dueDate:'2026-09-30',note:'接入方案通过后开具'}
+    ],
+
     /* ---------------- 业务人员（公司内部业务/跑动人员） ---------------- */
     /* line: 新能源 / 大交通 / 网约车 / 车辆销售 / 综合 ; status: 在职 / 试用 / 停职
        projects: 负责/参与的项目 id 列表（与 projects 表关联） */
@@ -382,6 +403,8 @@ function ensureV5(db){
   if(!db.users || !db.users.length) db.users=seed().users;
   if(!db.auditLog) db.auditLog=[];
   if(!db.applications) db.applications=[];
+  if(!db.opportunities) db.opportunities=[];
+  if(!db.invoices) db.invoices=[];
   (db.users||[]).forEach(function(u){ if(u.mustSetPwd===undefined) u.mustSetPwd=false; if(u.pwd===undefined) u.pwd=null; });
   backfillContractLines(db);
   if(db.meta) db.meta.ver='5.0';
