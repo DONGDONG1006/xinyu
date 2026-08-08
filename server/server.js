@@ -27,7 +27,14 @@ const clients = new Map();  // token -> {user, res}
 
 let sharedDB = null;
 try { if (fs.existsSync(DBFILE)) sharedDB = JSON.parse(fs.readFileSync(DBFILE, 'utf8')); } catch (e) { sharedDB = null; }
-function saveShared() { if (!sharedDB) return; try { fs.writeFileSync(DBFILE, JSON.stringify(sharedDB)); } catch (e) {} }
+function saveShared() {
+  if (!sharedDB) return;
+  try {
+    const dir = path.dirname(DBFILE);
+    if (dir && !fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DBFILE, JSON.stringify(sharedDB));
+  } catch (e) {}
+}
 
 function send(res, obj) { try { res.write('data: ' + JSON.stringify(obj) + '\n\n'); } catch (e) {} }
 function presence() {
