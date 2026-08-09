@@ -141,12 +141,15 @@ function submitLogin(){
   var u=(document.getElementById('lgU').value||'').trim();
   var p=(document.getElementById('lgP').value||'');
   if(!u||!p){ toast('请输入账号和密码'); return; }
-  var rec=(DB.users||[]).filter(function(x){ return x.username===u; })[0];
-  if(!rec){ toast('账号不存在'); return; }
-  if(rec.disabled){ toast('该账号已被禁用，请联系管理员'); return; }
-  if(rec.mustSetPwd){ _pendingSetPwdUser=rec; showSetPwdGate(rec); return; }
-  if(rec.pwd!==hashPwd(p)){ toast('密码错误'); return; }
-  completeLogin(rec);
+  /* 先从服务器拉取最新用户列表（解决新设备没有新建用户的问题） */
+  fetchServerDB(function(){
+    var rec=(DB.users||[]).filter(function(x){ return x.username===u; })[0];
+    if(!rec){ toast('账号不存在'); return; }
+    if(rec.disabled){ toast('该账号已被禁用，请联系管理员'); return; }
+    if(rec.mustSetPwd){ _pendingSetPwdUser=rec; showSetPwdGate(rec); return; }
+    if(rec.pwd!==hashPwd(p)){ toast('密码错误'); return; }
+    completeLogin(rec);
+  });
 }
 function completeLogin(rec){
   CUR_USER={id:rec.id,username:rec.username,name:rec.name,role:rec.role,field:rec.field||'综合'};
@@ -226,22 +229,22 @@ function applyAuthUI(){
 }
 function landingPage(){ return isManager()? 'dash' : 'run'; }
 function logoutAll(){
-  if(SYNC.es) try{ SYNC.es.close(); }catch(e){}
-  SYNC.on=false; SYNC.token=null; SYNC.user=null; SYNC.users=[];
+  if(SYNC.timer) clearInterval(SYNC.timer);
+  SYNC.on=false; SYNC.token=null; SYNC.user=null; SYNC.users=[]; SYNC.timer=null;
   try{ localStorage.removeItem('xy_session'); localStorage.removeItem('xy_token'); localStorage.removeItem('xy_user'); }catch(e){}
   CUR_USER=null; hideLoginGate(); showLoginGate(); applyAuthUI();
 }
 function connectSync(){
   if(SYNC.on) return;
+  if(!initSupabase()){ /* 未配置 Supabase：离线模式，本机数据仍可正常工作 */ return; }
   var u=CUR_USER?CUR_USER.username:'guest';
   var nm=CUR_USER?CUR_USER.name:u, rl=CUR_USER?CUR_USER.role:'guest';
-  fetch(apiURL('/api/login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,name:nm,role:rl,token:uid('t')})})
-    .then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ SYNC.token=j.token; SYNC.user={name:nm,role:rl}; SYNC.on=true;
-        try{ localStorage.setItem('xy_token',j.token); localStorage.setItem('xy_user',JSON.stringify(SYNC.user)); }catch(e){}
-        startStream(); renderPresence(); toast('协同已连接：'+nm);
-      }
-    }).catch(function(){ /* 离线：本机数据仍可正常工作 */ });
+  SYNC.token=uid('t'); SYNC.user={name:nm,role:rl}; SYNC.on=true;
+  try{ localStorage.setItem('xy_token',SYNC.token); localStorage.setItem('xy_user',JSON.stringify(SYNC.user)); }catch(e){}
+  /* 拉取最新数据 → 启动实时订阅 */
+  fetchServerDB(function(){
+    startPolling(); renderPresence(); toast('云端同步已连接：'+nm);
+  });
 }
 function openLogin(){ connectSync(); }
 
@@ -290,10 +293,11 @@ function renderAdmin(){
     fld('API Key','aiKey',ac.key||'')+
     '<button class="btn pri" onclick="saveAiCfg()">保存 AI 配置</button>'+
 
-    '<div class="sect tech" style="margin-top:16px">协同服务（多设备实时同步）<span class="ln"></span></div>'+
-    '<div class="note">部署到公网后，在此填入协同后端地址即可实现跨设备实时数据同步。留空则使用当前访问地址（同源）。后端为 <code>server/server.js</code>（Node 零依赖）。</div>'+
-    fld('协同服务地址','syncUrl',API_BASE||'（同源 / 离线模式）')+
-    '<button class="btn pri" onclick="saveSyncCfg()">保存同步配置</button>';
+    '<div class="sect tech" style="margin-top:16px">云端同步服务（Supabase · 免费实时同步）<span class="ln"></span></div>'+
+    '<div class="note">填入 Supabase 项目 URL 和 anon key 即可实现跨设备实时数据同步（WebSocket 推送，秒级到达）。留空则离线模式（数据存本机）。</div>'+
+    fld('Supabase URL','sbUrl',SB_URL||'')+
+    fld('Supabase Anon Key','sbKey',SB_KEY||'')+
+    '<button class="btn pri" onclick="saveSupabaseCfg(_v(\'sbUrl\'),_v(\'sbKey\'))">保存同步配置</button>';
 
   var al=(DB.auditLog||[]).map(function(a){
     return '<div class="audit"><span class="at">'+esc((a.t||'').replace('T',' ').slice(0,19))+'</span>'+
@@ -389,7 +393,7 @@ function saveSyncCfg(){
   if(!requireAdmin('配置协同')) return;
   var url=(document.querySelector('#admSys [name="syncUrl"]')||{}).value||'';
   setApiBase(url);
-  if(SYNC.on){ try{ if(SYNC.es) SYNC.es.close(); }catch(e){} SYNC.on=false; SYNC.token=null; }
+  if(SYNC.on){ if(SYNC.timer) clearInterval(SYNC.timer); SYNC.on=false; SYNC.token=null; }
   connectSync();
   toast(url?'协同地址已设为：'+url+' · 正在连接…':'已恢复同源模式（离线/本地后端）');
 }
@@ -1543,9 +1547,11 @@ function init(){
   renderProjNav(); refreshBadges();
   tickClock(); setInterval(tickClock,1000);
   if(typeof AI!=='undefined' && AI.init) AI.init();
-  /* 登录鉴权：未登录弹出登录网关，已登录恢复会话并按角色进入对应平台 */
-  if(bootAuth()){ applyAuthUI(); connectSync(); go(landingPage()); } else { applyAuthUI(); showLoginGate(); }
-  renderPresence();
+  /* 登录鉴权：先从服务器拉取最新数据（确保新设备能看到新建用户），再判断登录状态 */
+  fetchServerDB(function(){
+    if(bootAuth()){ applyAuthUI(); connectSync(); go(landingPage()); } else { applyAuthUI(); showLoginGate(); }
+    renderPresence();
+  });
 }
 
 /* ---------------- 多设备协同（登录 + SSE 实时联动） ---------------- */
@@ -1558,14 +1564,40 @@ function setApiBase(url){
   try{ localStorage.setItem('xy_apibase',url); }catch(e){}
   API_BASE=url;
 }
-var SYNC={on:false,token:null,user:null,es:null,users:[],status:'off'};
+var SYNC={on:false,token:null,user:null,timer:null,users:[],status:'off',version:'0'};
 var SUPPRESS_SYNC=false;
+/* ===== Supabase 云端实时同步（WebSocket 推送，无需轮询）===== */
+var SB_URL=(function(){ try{ return localStorage.getItem('xy_sb_url')||''; }catch(e){ return ''; } })();
+var SB_KEY=(function(){ try{ return localStorage.getItem('xy_sb_key')||''; }catch(e){ return ''; } })();
+var SB_CLIENT=null;
+var SB_CHANNEL=null;
+function initSupabase(){
+  if(!SB_URL||!SB_KEY) return false;
+  if(typeof supabase==='undefined') return false;
+  try{ SB_CLIENT=supabase.createClient(SB_URL,SB_KEY); return true; }catch(e){ return false; }
+}
+function saveSupabaseCfg(url,key){
+  try{ localStorage.setItem('xy_sb_url',url); localStorage.setItem('xy_sb_key',key); }catch(e){}
+  SB_URL=url; SB_KEY=key;
+}
+/* 从 Supabase 拉取最新数据（登录前调用，解决新设备没有新用户的问题） */
+function fetchServerDB(cb){
+  cb=cb||function(){};
+  if(!initSupabase()){ cb(); return; }
+  try{
+    SB_CLIENT.from('workbench_data').select('data,version').eq('id',1).single().then(function(res){
+      if(res.data&&res.data.data){ DB=res.data.data; saveDBNoPush(); bindSyncAndRender(); SYNC.version=String(res.data.version||0); }
+      cb();
+    }).catch(function(){ cb(); });
+  }catch(e){ cb(); }
+}
 var R_MAP={dash:renderDash,newenergy:renderNewEnergy,transport:renderTransport,ride:renderRide,
   sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin};
 function afterSave(){ if(SYNC.on && !SUPPRESS_SYNC) syncPush(); }
 function syncPush(){
-  if(!SYNC.token) return;
-  try{ fetch(apiURL('/api/db'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:SYNC.token,db:DB})}).catch(function(){}); }catch(e){}
+  if(!SB_CLIENT) return;
+  var nv=parseInt(SYNC.version||'0',10)+1;
+  try{ SB_CLIENT.from('workbench_data').update({data:DB,version:nv,updated_at:new Date().toISOString()}).eq('id',1).then(function(){ SYNC.version=String(nv); }).catch(function(){}); }catch(e){}
 }
 function saveDBNoPush(){ SUPPRESS_SYNC=true; saveDB(); SUPPRESS_SYNC=false; }
 function bindSyncAndRender(){
@@ -1574,30 +1606,36 @@ function bindSyncAndRender(){
   if(cur){ var id=cur.id.slice(2); if(id==='detail') renderDetail(); else if(R_MAP[id]) R_MAP[id](); }
 }
 function doLogin(user,pass){
-  fetch(apiURL('/api/login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:user,pass:pass})})
-    .then(function(r){return r.json();}).then(function(j){
-      if(!j.ok){ toast(j.msg||'登录失败'); return; }
-      SYNC.token=j.token; SYNC.user=j.user; SYNC.on=true;
-      try{ localStorage.setItem('xy_token',j.token); localStorage.setItem('xy_user',JSON.stringify(j.user)); }catch(e){}
-      startStream(); closeDrawer(); renderPresence();
-      toast('已登录：'+j.user.name+' · 协同已开启');
-    }).catch(function(){ toast('协同服务未连接（离线模式）'); });
+  /* 本地校验已在 submitLogin 完成，此函数兼容旧调用 */
+  toast('请使用登录页面登录');
 }
-function startStream(){
-  if(!SYNC.token) return;
-  if(SYNC.es) try{ SYNC.es.close(); }catch(e){}
-  try{
-    var es=new EventSource(apiURL('/api/stream?token='+encodeURIComponent(SYNC.token)));
-    SYNC.es=es; SYNC.status='conn'; renderPresence();
-    es.onopen=function(){ SYNC.status='on'; renderPresence(); };
-    es.onmessage=function(ev){
-      var m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
-      if(m.type==='snapshot'){ if(m.db){ DB=m.db; saveDBNoPush(); bindSyncAndRender(); } else { syncPush(); } }
-      else if(m.type==='update'){ if(m.db){ DB=m.db; saveDBNoPush(); bindSyncAndRender(); toast('其他设备已更新 · 已同步'); } }
-      else if(m.type==='presence'){ SYNC.users=m.users||[]; renderPresence(); }
-    };
-    es.onerror=function(){ SYNC.status='off'; renderPresence(); };
-  }catch(e){}
+/* Supabase 实时同步：WebSocket 推送，数据变更秒级到达所有设备 */
+function startPolling(){
+  if(!SB_CLIENT){ return; }
+  if(SB_CHANNEL){ try{ SB_CHANNEL.unsubscribe(); }catch(e){} }
+  SYNC.status='on'; renderPresence();
+  /* 订阅 workbench_data 表的 UPDATE 事件 */
+  SB_CHANNEL=SB_CLIENT.channel('workbench-db')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'workbench_data'},function(payload){
+      var nd=payload.new;
+      if(nd&&nd.data&&String(nd.version)!==SYNC.version){
+        DB=nd.data; saveDBNoPush(); bindSyncAndRender();
+        SYNC.version=String(nd.version);
+        toast('数据已同步');
+      }
+    })
+    .subscribe(function(status){
+      if(status==='SUBSCRIBED'){ SYNC.status='on'; }
+      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){ SYNC.status='off'; }
+      renderPresence();
+    });
+  /* 心跳：每 30 秒更新在线状态 */
+  if(SYNC.timer) clearInterval(SYNC.timer);
+  SYNC.timer=setInterval(function(){
+    if(SYNC.on&&CUR_USER){
+      try{ SB_CLIENT.from('presence').upsert({id:SYNC.token||CUR_USER.id,name:CUR_USER.name,role:CUR_USER.role,ts:Date.now()}).then(function(){}).catch(function(){}); }catch(e){}
+    }
+  },30000);
 }
 function renderPresence(){
   var html='';
@@ -1612,8 +1650,9 @@ function renderPresence(){
 }
 /* openLogin 已在本文件上方「账号 / 密码登录 + 角色权限」段重定义为 connectSync（本地登录后连接协同） */
 function logout(){
-  if(SYNC.es) try{ SYNC.es.close(); }catch(e){}
-  SYNC.on=false; SYNC.token=null; SYNC.user=null; SYNC.es=null; SYNC.users=[];
+  if(SB_CHANNEL){ try{ SB_CHANNEL.unsubscribe(); }catch(e){} SB_CHANNEL=null; }
+  if(SYNC.timer) clearInterval(SYNC.timer);
+  SYNC.on=false; SYNC.token=null; SYNC.user=null; SYNC.timer=null; SYNC.users=[]; SYNC.version='0';
   try{ localStorage.removeItem('xy_token'); localStorage.removeItem('xy_user'); }catch(e){}
   renderPresence(); toast('已退出协同（本机数据保留）');
 }

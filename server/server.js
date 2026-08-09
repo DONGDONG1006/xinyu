@@ -107,6 +107,13 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    /* 数据快照（无需鉴权，供前端登录前拉取最新用户列表） */
+    if (u.pathname === '/api/snapshot' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, db: sharedDB }));
+      return;
+    }
+
     if (u.pathname === '/api/db' && req.method === 'POST') {
       readBody(req, d => {
         if (!sessions.get(d.token)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, msg: '未登录' })); return; }

@@ -1,5 +1,5 @@
-/* 甘肃新煜科技工作台 · Service Worker（离线缓存应用壳 v6.4 · PWA 全平台安装 + 启动屏） */
-var CACHE='xy-workbench-v6.4';
+/* 甘肃新煜科技工作台 · Service Worker（离线缓存应用壳 v6.16 · Supabase 实时同步） */
+var CACHE='xy-workbench-v6.16';
 var SHELL=['./','./index.html','./manifest.json','./css/app.css',
   './js/data.js','./js/charts.js','./js/modules.js','./js/overview.js','./js/ai.js','./js/app.js',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png',

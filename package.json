@@ -1,0 +1,12 @@
+{
+  "name": "xinyu-workbench",
+  "version": "6.15.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler pages deploy workbench-app --project-name xinyu-workbench",
+    "dev": "wrangler pages dev workbench-app --port 8788"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
