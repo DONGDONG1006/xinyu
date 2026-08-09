@@ -236,15 +236,22 @@ function logoutAll(){
 }
 function connectSync(){
   if(SYNC.on) return;
-  if(!initSupabase()){ /* 未配置 Supabase：离线模式，本机数据仍可正常工作 */ return; }
   var u=CUR_USER?CUR_USER.username:'guest';
   var nm=CUR_USER?CUR_USER.name:u, rl=CUR_USER?CUR_USER.role:'guest';
   SYNC.token=uid('t'); SYNC.user={name:nm,role:rl}; SYNC.on=true;
   try{ localStorage.setItem('xy_token',SYNC.token); localStorage.setItem('xy_user',JSON.stringify(SYNC.user)); }catch(e){}
-  /* 拉取最新数据 → 启动实时订阅 */
-  fetchServerDB(function(){
-    startPolling(); renderPresence(); toast('云端同步已连接：'+nm);
-  });
+  /* 优先 Supabase，其次 GitHub DB */
+  if(initSupabase()){
+    fetchServerDB(function(){
+      startPolling(); renderPresence(); toast('云端同步已连接(Supabase)：'+nm);
+    });
+  } else if(ghEnabled()){
+    fetchServerDB(function(){
+      ghStartPolling(); renderPresence(); toast('云端同步已连接(GitHub)：'+nm);
+    });
+  } else {
+    renderPresence(); /* 离线模式 */
+  }
 }
 function openLogin(){ connectSync(); }
 
@@ -293,11 +300,17 @@ function renderAdmin(){
     fld('API Key','aiKey',ac.key||'')+
     '<button class="btn pri" onclick="saveAiCfg()">保存 AI 配置</button>'+
 
-    '<div class="sect tech" style="margin-top:16px">云端同步服务（Supabase · 免费实时同步）<span class="ln"></span></div>'+
-    '<div class="note">填入 Supabase 项目 URL 和 anon key 即可实现跨设备实时数据同步（WebSocket 推送，秒级到达）。留空则离线模式（数据存本机）。</div>'+
+    '<div class="sect tech" style="margin-top:16px">云端同步 · 方式一：GitHub DB（推荐，国内免注册）<span class="ln"></span></div>'+
+    '<div class="note">用 GitHub 仓库做云端数据库，10 秒轮询同步。只需填入 GitHub Token（需 repo 权限）。仓库已公开，token 仅存本机。</div>'+
+    fld('GitHub Token','ghToken',GH_CFG.token||'')+
+    '<div class="f2">'+fld('仓库所有者','ghOwner',GH_CFG.owner||'DONGDONG1006')+fld('仓库名','ghRepo',GH_CFG.repo||'xinyu')+'</div>'+
+    '<button class="btn pri" onclick="ghSaveCfg(_v(\'ghToken\'),_v(\'ghOwner\'),_v(\'ghRepo\'))">保存 GitHub DB 配置</button>'+
+
+    '<div class="sect tech" style="margin-top:16px">云端同步 · 方式二：Supabase（实时 WebSocket）<span class="ln"></span></div>'+
+    '<div class="note">填入 Supabase 项目 URL 和 anon key 即可实现跨设备实时数据同步（WebSocket 推送，秒级到达）。需注册 supabase.com。</div>'+
     fld('Supabase URL','sbUrl',SB_URL||'')+
     fld('Supabase Anon Key','sbKey',SB_KEY||'')+
-    '<button class="btn pri" onclick="saveSupabaseCfg(_v(\'sbUrl\'),_v(\'sbKey\'))">保存同步配置</button>';
+    '<button class="btn pri" onclick="saveSupabaseCfg(_v(\'sbUrl\'),_v(\'sbKey\'))">保存 Supabase 配置</button>';
 
   var al=(DB.auditLog||[]).map(function(a){
     return '<div class="audit"><span class="at">'+esc((a.t||'').replace('T',' ').slice(0,19))+'</span>'+
@@ -1580,24 +1593,31 @@ function saveSupabaseCfg(url,key){
   try{ localStorage.setItem('xy_sb_url',url); localStorage.setItem('xy_sb_key',key); }catch(e){}
   SB_URL=url; SB_KEY=key;
 }
-/* 从 Supabase 拉取最新数据（登录前调用，解决新设备没有新用户的问题） */
+/* 从云端拉取最新数据（登录前调用，解决新设备没有新用户的问题） */
 function fetchServerDB(cb){
   cb=cb||function(){};
-  if(!initSupabase()){ cb(); return; }
-  try{
-    SB_CLIENT.from('workbench_data').select('data,version').eq('id',1).single().then(function(res){
-      if(res.data&&res.data.data){ DB=res.data.data; saveDBNoPush(); bindSyncAndRender(); SYNC.version=String(res.data.version||0); }
-      cb();
-    }).catch(function(){ cb(); });
-  }catch(e){ cb(); }
+  /* 优先 Supabase，其次 GitHub DB */
+  if(initSupabase()){
+    try{
+      SB_CLIENT.from('workbench_data').select('data,version').eq('id',1).single().then(function(res){
+        if(res.data&&res.data.data){ DB=res.data.data; saveDBNoPush(); bindSyncAndRender(); SYNC.version=String(res.data.version||0); }
+        cb();
+      }).catch(function(){ cb(); });
+    }catch(e){ cb(); }
+  } else if(ghEnabled()){
+    ghFetchDB(cb);
+  } else { cb(); }
 }
 var R_MAP={dash:renderDash,newenergy:renderNewEnergy,transport:renderTransport,ride:renderRide,
   sales:renderSales,contract:renderContract,fin:renderFin,run:renderRun,staff:renderStaff,map:renderMap,detail:renderDetail,admin:renderAdmin};
 function afterSave(){ if(SYNC.on && !SUPPRESS_SYNC) syncPush(); }
 function syncPush(){
-  if(!SB_CLIENT) return;
-  var nv=parseInt(SYNC.version||'0',10)+1;
-  try{ SB_CLIENT.from('workbench_data').update({data:DB,version:nv,updated_at:new Date().toISOString()}).eq('id',1).then(function(){ SYNC.version=String(nv); }).catch(function(){}); }catch(e){}
+  if(SB_CLIENT){
+    var nv=parseInt(SYNC.version||'0',10)+1;
+    try{ SB_CLIENT.from('workbench_data').update({data:DB,version:nv,updated_at:new Date().toISOString()}).eq('id',1).then(function(){ SYNC.version=String(nv); }).catch(function(){}); }catch(e){}
+  } else if(ghEnabled()){
+    ghPushDB();
+  }
 }
 function saveDBNoPush(){ SUPPRESS_SYNC=true; saveDB(); SUPPRESS_SYNC=false; }
 function bindSyncAndRender(){
