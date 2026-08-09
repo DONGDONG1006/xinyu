@@ -1,7 +1,7 @@
-/* 甘肃新煜科技工作台 · Service Worker（离线缓存应用壳 v6.16 · Supabase 实时同步） */
-var CACHE='xy-workbench-v6.16';
+/* 甘肃新煜科技工作台 · Service Worker（离线缓存应用壳 v6.17 · GitHub DB 同步） */
+var CACHE='xy-workbench-v6.17';
 var SHELL=['./','./index.html','./manifest.json','./css/app.css',
-  './js/data.js','./js/charts.js','./js/modules.js','./js/overview.js','./js/ai.js','./js/app.js',
+  './js/data.js','./js/gh-sync.js','./js/charts.js','./js/modules.js','./js/overview.js','./js/ai.js','./js/app.js',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png','./icons/favicon.svg',
   './icons/splash-1284x2778.png'];
