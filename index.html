@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>甘肃新煜科技工作台</title>
+<meta name="description" content="甘肃新煜科技集团经营工作台 · 新能源 / 大交通机电 / 网约车平台 / 新能源车销售">
+<meta name="theme-color" content="#ff8c1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="新煜工作台">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-startup-image" href="icons/splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)">
+<link rel="apple-touch-startup-image" href="icons/splash-1284x2778.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/app.css">
+<script>
+/* 防主题闪烁：在 CSS 应用前根据存储/系统偏好确定明/暗 */
+(function(){try{
+  var m=localStorage.getItem('xy_theme')||'system';
+  var dark = m==='dark' || (m!=='light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+}catch(e){ document.documentElement.dataset.theme='dark'; }})();
+</script>
+</head>
+<body>
+<div class="app">
+
+  <!-- 启动屏（全平台统一，init 后淡出） -->
+  <div id="splash" class="splash">
+    <div class="splash-logo" id="splashLogo"></div>
+    <div class="splash-name">甘肃新煜科技</div>
+    <div class="splash-sub">工作台</div>
+    <div class="splash-bar"></div>
+  </div>
+
+  <!-- 移动端顶栏 -->
+  <div class="topbar">
+    <div class="ham" onclick="toggleNav()">☰</div>
+    <div style="flex:1">
+      <div class="tn">甘肃新煜科技工作台</div>
+      <div class="ts" id="mbSub">经营驾驶舱</div>
+    </div>
+      <div class="ts mono" id="mbClock">--:--</div>
+      <span id="usrBadge"></span>
+      <span id="presence" class="sync off" onclick="openLogin()" style="margin-left:8px;white-space:nowrap"></span>
+  </div>
+
+  <!-- 侧边栏 -->
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="blogo">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="甘肃新煜科技">
+          <defs>
+            <linearGradient id="xygsb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#ff6b35"/></linearGradient>
+            <radialGradient id="xyssb" cx="0.5" cy="0.45" r="0.62"><stop offset="0" stop-color="#ffe3b0"/><stop offset="0.55" stop-color="#ff8c1a"/><stop offset="1" stop-color="#ff6b35"/></radialGradient>
+          </defs>
+          <path d="M32 3 L57.1 17.5 L57.1 46.5 L32 61 L6.9 46.5 L6.9 17.5 Z" fill="none" stroke="url(#xygsb)" stroke-width="2.6" stroke-linejoin="round"/>
+          <path d="M23 21 L32 11 L41 21" fill="none" stroke="url(#xygsb)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="32" cy="39" r="8.5" fill="url(#xyssb)"/>
+          <g stroke="#ff8c1a" stroke-width="2" stroke-linecap="round">
+            <line x1="43" y1="39" x2="46.5" y2="39"/><line x1="39.78" y1="46.22" x2="42.27" y2="49.71"/>
+            <line x1="32" y1="50" x2="32" y2="53.5"/><line x1="24.22" y1="46.22" x2="21.73" y2="49.71"/>
+            <line x1="21" y1="39" x2="17.5" y2="39"/><line x1="24.22" y1="31.78" x2="21.73" y2="28.29"/>
+            <line x1="39.78" y1="31.78" x2="42.27" y2="28.29"/>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <div class="n">甘肃新煜科技</div>
+        <div class="s">Workbench 5.0</div>
+      </div>
+    </div>
+
+    <div class="navgrp"><div class="lbl">决策层</div>
+      <div class="nav on" data-page="dash"><span class="ic">◎</span>经营驾驶舱</div>
+      <div class="nav" data-page="map"><span class="ic">⊕</span>项目地图</div>
+    </div>
+    <div class="navgrp"><div class="lbl">业务线</div>
+      <div class="nav" data-page="newenergy"><span class="ic">☀</span>新能源项目</div>
+      <div class="nav" data-page="transport"><span class="ic">⛟</span>大交通机电</div>
+      <div class="nav" data-page="ride"><span class="ic">◈</span>网约车平台</div>
+      <div class="nav" data-page="sales"><span class="ic">▤</span>车辆销售</div>
+    </div>
+    <div class="navgrp"><div class="lbl">经营中枢</div>
+      <div class="nav" data-page="contract"><span class="ic">✎</span>合同管理<span class="badge" id="navCt">0</span></div>
+      <div class="nav" data-page="fin"><span class="ic">¥</span>业务财务</div>
+      <div class="nav" data-page="run"><span class="ic">➤</span>跑动作战台<span class="badge" id="navRun">0</span></div>
+      <div class="nav" data-page="staff"><span class="ic">⚑</span>业务人员</div>
+      <div class="nav" data-page="people"><span class="ic">☻</span>关键人管理</div>
+      <div class="nav" data-page="opportunity"><span class="ic">✦</span>机会商机</div>
+      <div class="nav" data-page="expense"><span class="ic">¥</span>费用报销</div>
+      <div class="nav" data-page="approval"><span class="ic">✓</span>审批中心</div>
+    </div>
+    <div class="navgrp"><div class="lbl">项目中心</div>
+      <div class="nav" data-page="projects"><span class="ic">▦</span>项目组合总览</div>
+      <div id="projNav"></div>
+    </div>
+    <div class="navgrp adminOnly"><div class="lbl">系统</div>
+      <div class="nav" data-page="admin"><span class="ic">⚙</span>平台管理后台</div>
+    </div>
+    <div class="foot">
+      <div class="themesw" id="themeSwitch" title="明暗主题（默认跟随手机/电脑系统）">
+        <button data-t="system" onclick="setTheme('system')">跟随系统</button>
+        <button data-t="light" onclick="setTheme('light')">浅色</button>
+        <button data-t="dark" onclick="setTheme('dark')">深色</button>
+      </div>
+      <div id="usrBadgeD" style="margin-bottom:8px"></div>
+      <span class="pulse"></span><span id="presenceFoot" class="sync off" onclick="openLogin()">⦿ 未协同 · 点击登录</span><br>
+      离线可用 · v5.0 · 甘肃新煜科技<br>
+      <span style="cursor:pointer;color:#6b7d9e;text-decoration:underline" onclick="if(requireAdmin('恢复示例数据'))resetDB()">恢复示例数据</span>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="main" id="main">
+
+    <!-- ============ 经营驾驶舱 ============ -->
+    <section id="p-dash">
+      <div class="ptitle">
+        <h1>经营驾驶舱</h1><span class="sub">全域态势 · 今天我必须管什么</span>
+        <div class="spacer"></div>
+        <span class="mono" id="clock" style="font-size:12px;color:var(--txt3)"></span>
+      </div>
+
+      <!-- HUD 集团指挥条 -->
+      <div class="hud">
+        <div class="hd">
+          <span class="t">GROUP SITUATION · 集团经营总览</span>
+          <span class="live"><i></i>REAL-TIME</span>
+          <div class="spacer"></div>
+          <span class="mono" id="hudStamp" style="font-size:10.5px;color:var(--txt3)"></span>
+        </div>
+        <div class="hudgrid" id="dashHud"></div>
+      </div>
+
+      <!-- 全域模块矩阵 -->
+      <div class="sect tech">全域模块态势 <span class="tip">各功能模块关键信息 · 点击直达</span><span class="ln"></span></div>
+      <div class="modgrid" id="dashMatrix"></div>
+
+      <!-- 年度目标达成 -->
+      <div class="sect tech" style="margin-top:18px">年度经营目标达成 <span class="tip">收入 / 回款 / 净利 / 装机</span><span class="ln"></span></div>
+      <div class="card hudc"><div class="gaugegrid" id="dashGauge"></div></div>
+
+      <div class="sect tech">今日必须处理 <span class="tip">按 影响金额 × 逾期天数 排序</span><span class="ln"></span></div>
+      <div class="card"><div id="dashAlerts"></div></div>
+
+      <div class="grid kpis" id="dashKpi" style="margin-top:14px"></div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="card cut"><div class="sect" style="margin:0 0 10px">收入与现金流趋势（12 个月）</div><div class="chart" id="chCash"></div>
+          <div class="legend"><span><i style="background:#ff8c1a"></i>经营现金净流入（万元）</span></div></div>
+        <div class="card cut"><div class="sect" style="margin:0 0 10px">四业务线健康度</div><div id="dashHealth"></div></div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="card hudc"><div class="sect" style="margin:0 0 10px">业务线综合体检 <span class="tip">五维雷达</span></div>
+          <div id="dashRadar"></div>
+          <div class="note">维度口径：经营规模＝收入占比；盈利能力＝净利率×5；回款质量＝100−应收占收入×3；合规健康＝风险项扣分（网约车取双证合规率）；成长动能＝同比换算。</div></div>
+        <div class="card hudc"><div class="sect" style="margin:0 0 10px">收入结构流向 <span class="tip">业务线 → 集团合并</span></div>
+          <div id="dashSankey"></div>
+          <div class="note">带宽即收入贡献度。网约车与车销售之间存在司机→购车协同通道，成交率约为外部投放的 2.9 倍。</div></div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="card"><div class="sect" style="margin:0 0 10px">待我审批</div><div id="dashApproval"></div></div>
+        <div class="card"><div class="sect" style="margin:0 0 10px">合同履约与收付款预警</div><div id="dashContract"></div></div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="card hudc"><div class="sect" style="margin:0 0 10px">全域实时动态流 <span class="tip">跑动 / 审批 / 收付款 / 费用</span></div>
+          <div class="stream" id="dashStream"></div></div>
+        <div class="card hudc"><div class="sect" style="margin:0 0 8px">开票强度热力（近 12 月）</div><div id="dashHeat"></div>
+          <div class="sect" style="margin:14px 0 8px">回款强度热力（近 12 月）</div><div id="dashHeat2"></div>
+          <div class="note">色深代表当月金额强度。对比两条热力可快速识别"开票高但回款塌陷"的月份，定位回款责任。</div></div>
+      </div>
+    </section>
+
+    <!-- ============ 新能源 ============ -->
+    <section id="p-newenergy" class="hide">
+      <div class="ptitle"><h1>新能源项目</h1><span class="sub">风电 / 光伏 / 充电场站</span></div>
+      <div class="digest" id="dg-newenergy"></div>
+      <div class="grid kpis" id="neKpi"></div>
+      <div class="sect">项目开发管道（装机容量 MW）</div>
+      <div class="card"><div class="chart" id="nePipe"></div></div>
+      <div class="sect">前期手续矩阵 <span class="tip">点任一格可直接派单</span></div>
+      <div class="card scroll"><div id="neMatrix"></div></div>
+      <div class="sect">项目台账</div>
+      <div class="card scroll"><div id="neList"></div></div>
+    </section>
+
+    <!-- ============ 大交通 ============ -->
+    <section id="p-transport" class="hide">
+      <div class="ptitle"><h1>大交通机电</h1><span class="sub">高速公路 / 国省干线 · 工程 + 设备供应</span></div>
+      <div class="digest" id="dg-transport"></div>
+      <div class="grid kpis" id="trKpi"></div>
+      <div class="row" style="margin-top:14px">
+        <div class="card"><div class="sect" style="margin:0 0 10px">商机到中标漏斗</div><div class="chart" id="trFunnel"></div></div>
+        <div class="card"><div class="sect" style="margin:0 0 10px">设备供应链（呆滞 + 缺口）</div><div id="trSupply"></div></div>
+      </div>
+      <div class="card" style="margin-top:14px"><div class="sect" style="margin:0 0 10px">应收账龄分布（万元）</div><div class="chart" id="trAge"></div></div>
+    </section>
+
+    <!-- ============ 网约车 ============ -->
+    <section id="p-ride" class="hide">
+      <div class="ptitle"><h1>网约车平台</h1><span class="sub">合规一票否决</span></div>
+      <div class="digest" id="dg-ride"></div>
+      <div class="grid kpis" id="rdKpi"></div>
+      <div class="card" style="margin-top:14px"><div class="sect" style="margin:0 0 10px">合规专区 <span class="tip">双证合规率 &lt; 90% 直接红灯</span></div><div id="rdCompliance"></div></div>
+      <div class="row" style="margin-top:14px">
+        <div class="card"><div class="sect" style="margin:0 0 10px">单车日经济模型</div><div id="rdUnit"></div></div>
+        <div class="card"><div class="sect" style="margin:0 0 10px">司机生命周期 → 卖车协同</div><div class="chart" id="rdFunnel"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ 车辆销售 ============ -->
+    <section id="p-sales" class="hide">
+      <div class="ptitle"><h1>新能源车销售</h1><span class="sub">含平台司机协同池</span></div>
+      <div class="digest" id="dg-sales"></div>
+      <div class="grid kpis" id="slKpi"></div>
+      <div class="row" style="margin-top:14px">
+        <div class="card"><div class="sect" style="margin:0 0 10px">转化漏斗</div><div class="chart" id="slFunnel"></div></div>
+        <div class="card"><div class="sect" style="margin:0 0 10px">库存车龄 &amp; 资金占用</div><div class="chart" id="slAge"></div></div>
+      </div>
+      <div class="card" style="margin-top:14px"><div class="sect" style="margin:0 0 10px">业务协同池 · 网约车司机购车</div><div class="scroll" id="slPool"></div></div>
+    </section>
+
+    <!-- ============ 合同管理 ============ -->
+    <section id="p-contract" class="hide">
+      <div class="ptitle"><h1>合同管理</h1><span class="sub">签订 · 履约 · 收付 · 变更 · 质保 全周期管控</span>
+        <div class="spacer"></div>
+        <button class="btn" onclick="exportContracts()">导出台账</button>
+        <button class="btn pri" onclick="openContractAdd()">＋ 新增合同</button>
+      </div>
+      <div class="digest" id="dg-contract"></div>
+      <div class="grid kpis" id="ctKpi"></div>
+
+      <div class="sect">履约风险预警 <span class="tip">逾期收付款 / 履约滞后 / 质保到期</span></div>
+      <div class="card"><div id="ctAlert"></div></div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="card"><div class="sect" style="margin:0 0 10px">未来 90 天收付款节点</div><div class="scroll" id="ctSchedule"></div></div>
+        <div class="card"><div class="sect" style="margin:0 0 10px">合同额构成（按业务类别）</div><div class="chart" id="ctMix"></div></div>
+      </div>
+
+      <div class="sect">合同台账
+        <span class="tip" style="margin-left:auto">
+          <span class="seg" id="ctFilter" style="vertical-align:middle">
+            <button class="on" data-f="all">全部</button>
+            <button data-f="in">收入类</button>
+            <button data-f="out">支出类</button>
+            <button data-f="risk">有风险</button>
+          </span>
+        </span>
+      </div>
+      <div class="card scroll"><div id="ctList"></div></div>
+    </section>
+
+    <!-- ============ 业务财务 ============ -->
+    <section id="p-fin" class="hide">
+      <div class="ptitle"><h1>业务财务</h1><span class="sub">业财一体：合同 → 收入 → 开票 → 回款 → 成本 → 现金</span>
+        <div class="spacer"></div>
+        <div class="seg" id="finTabs">
+          <button class="on" data-t="overview">总览</button>
+          <button data-t="pl">经营损益</button>
+          <button data-t="ar">应收</button>
+          <button data-t="ap">应付</button>
+          <button data-t="invoice">开票</button>
+          <button data-t="cash">资金</button>
+          <button data-t="tax">税务预算</button>
+        </div>
+        <button class="btn" onclick="exportFinVoucher()">⬇ 一键导出报账单据</button>
+      </div>
+      <div class="digest" id="dg-fin"></div>
+      <div class="grid kpis" id="finKpi"></div>
+      <div id="finBody" style="margin-top:14px"></div>
+    </section>
+
+    <!-- ============ 跑动作战台 ============ -->
+    <section id="p-run" class="hide">
+      <div class="ptitle"><h1>跑动作战台</h1><span class="sub">把"跑动"从个人能力变成组织能力</span>
+        <div class="spacer"></div><button class="btn pri" onclick="openRunAdd()">＋ 新增跑动事项</button></div>
+      <div class="digest" id="dg-run"></div>
+      <div class="grid kpis" id="runKpi"></div>
+      <div class="sect">事项台账 <span class="tip">卡在哪 / 卡了多久 / 谁去 / 何时办完</span></div>
+      <div class="card scroll"><div id="runList"></div></div>
+      <div class="note" style="margin-top:12px"><b>自动升级规则：</b>滞留 7 天升分管领导 · 15 天升董事长 · 30 天强制进经营例会且不可关闭。考核看<b>办结率</b>，不看拜访次数。</div>
+    </section>
+
+    <!-- ============ 业务人员管理 ============ -->
+    <section id="p-staff" class="hide">
+      <div class="ptitle"><h1>业务人员管理</h1><span class="sub">人员 · 项目 · 进度 · 关键人 · 业务费用 · 合同执行 一体化</span>
+        <div class="spacer"></div>
+        <button class="btn" onclick="exportExpenses()">导出费用</button>
+        <button class="btn" onclick="exportStaff()">导出人员</button>
+        <button class="btn pri" onclick="openStaffAdd()">＋ 新增业务人员</button>
+      </div>
+      <div class="digest" id="dg-staff"></div>
+      <div class="grid kpis" id="stKpi"></div>
+
+      <div class="sect">业务线筛选 <span class="tip" style="margin-left:auto">
+        <span class="seg" id="stFilter">
+          <button class="on" data-f="all" onclick="stLineSet('all')">全部</button>
+          <button data-f="新能源" onclick="stLineSet('新能源')">新能源</button>
+          <button data-f="大交通" onclick="stLineSet('大交通')">大交通</button>
+          <button data-f="网约车" onclick="stLineSet('网约车')">网约车</button>
+          <button data-f="车辆销售" onclick="stLineSet('车辆销售')">车辆销售</button>
+          <button data-f="综合" onclick="stLineSet('综合')">综合</button>
+        </span></span>
+      </div>
+      <div class="sgrid" id="stGrid"></div>
+
+      <div class="sect" style="margin-top:18px">业务费用总览 <span class="tip" style="margin-left:auto">
+        <span class="seg" id="stExpFilter">
+          <button class="on" data-f="all" onclick="stExpSet('all')">全部</button>
+          <button data-f="pending" onclick="stExpSet('pending')">待审批</button>
+          <button data-f="done" onclick="stExpSet('done')">已报销</button>
+          <button data-f="reject" onclick="stExpSet('reject')">驳回</button>
+        </span></span>
+      </div>
+      <div class="grid kpis" id="stExpKpi" style="margin-bottom:12px"></div>
+      <div class="row">
+        <div class="card"><div class="sect" style="margin:0 0 10px">费用按类型</div><div class="chart" id="stExpChart"></div></div>
+        <div class="card"><div class="sect" style="margin:0 0 10px">费用按业务人员</div><div class="chart" id="stExpStaff"></div></div>
+      </div>
+      <div class="card" style="margin-top:14px"><div class="sect" style="margin:0 0 10px">业务费用台账 <span class="tip" style="margin-left:auto"><button class="btn pri" onclick="openExpenseAdd()">＋ 登记业务费用</button></span></div>
+        <div class="scroll" id="stExpTable"></div></div>
+
+      <div class="sect" style="margin-top:18px">人员绩效排名 <span class="tip">合同额(收) / 业务费用 · 效率比越高越优</span></div>
+      <div class="card"><div id="stPerf"></div></div>
+    </section>
+
+    <!-- ============ 关键人管理（独立模块，与项目/开票联动） ============ -->
+    <section id="p-people" class="hide">
+      <div class="ptitle"><h1>关键人管理</h1><span class="sub">客户/项目负责人独立台账 · 与项目 / 合同 / 开票联动</span>
+        <div class="spacer"></div>
+        <span class="seg" id="pplFilter">
+          <button class="on" data-f="all" onclick="pplFilterSet('all')">全部</button>
+          <button data-f="决策" onclick="pplFilterSet('决策')">决策层</button>
+          <button data-f="影响" onclick="pplFilterSet('影响')">影响层</button>
+          <button data-f="执行" onclick="pplFilterSet('执行')">执行层</button>
+        </span>
+        <button class="btn pri" onclick="openPplAdd()">＋ 新增关键人</button>
+      </div>
+      <div class="grid kpis" id="pplKpi"></div>
+      <div class="sect">关键人台账 <span class="tip">三角色均可新增/编辑 · 删除仅管理员 · 含关联合同额 / 开票额</span></div>
+      <div class="card scroll"><div id="pplList"></div></div>
+    </section>
+
+    <!-- ============ 机会 / 商机（CRM） ============ -->
+    <section id="p-opportunity" class="hide">
+      <div class="ptitle"><h1>机会 / 商机</h1><span class="sub">CRM 线索 → 中标 全漏斗管控</span>
+        <div class="spacer"></div>
+        <span class="tip" style="margin-left:auto">
+          <span class="seg" id="oppFilter">
+            <button class="on" data-f="all" onclick="oppFilterSet('all')">全部</button>
+            <button data-f="open" onclick="oppFilterSet('open')">进行中</button>
+            <button data-f="win" onclick="oppFilterSet('win')">已中标</button>
+            <button data-f="lost" onclick="oppFilterSet('lost')">已丢单</button>
+          </span>
+        </span>
+        <button class="btn pri" onclick="openOppAdd()">＋ 新增机会</button>
+      </div>
+      <div class="grid kpis" id="oppKpi"></div>
+      <div class="sect">商机管道看板 <span class="tip">点击卡片查看详情或转为项目</span></div>
+      <div class="card scroll"><div id="oppBoard"></div></div>
+      <div class="sect" style="margin-top:14px">商机台账</div>
+      <div class="card scroll"><div id="oppList"></div></div>
+    </section>
+
+    <!-- ============ 项目组合总览（参考飞书/钉钉项目管理） ============ -->
+    <section id="p-projects" class="hide">
+      <div class="ptitle"><h1>项目组合总览</h1><span class="sub">全项目进度 · 阶段 · 风险 · 负责人 一屏掌握</span>
+        <div class="spacer"></div>
+        <input id="pjSearch" class="inline-sel" style="min-width:120px;max-width:180px" placeholder="搜索项目名/客户" oninput="projListRender()">
+        <span class="seg" id="pjLineFilter">
+          <button class="on" data-f="all" onclick="pjLineSet('all')">全部</button>
+          <button data-f="新能源" onclick="pjLineSet('新能源')">新能源</button>
+          <button data-f="大交通" onclick="pjLineSet('大交通')">大交通</button>
+          <button data-f="网约车" onclick="pjLineSet('网约车')">网约车</button>
+          <button data-f="车辆销售" onclick="pjLineSet('车辆销售')">销售</button>
+        </span>
+      </div>
+      <div class="grid kpis" id="pjKpi"></div>
+      <div class="sect">项目卡片 <span class="tip">点击卡片进入项目详情</span></div>
+      <div class="card"><div id="pjGrid"></div></div>
+    </section>
+
+    <!-- ============ 项目详情 ============ -->
+    <section id="p-detail" class="hide">
+      <div class="ptitle"><h1 id="dtName">项目详情</h1>
+        <select id="dtSel" class="inline-sel" onchange="switchProject(this.value)"></select>
+        <button class="btn" onclick="openProjectAdd()">＋ 新增</button>
+        <button class="btn dgr adminOnly" onclick="if(curProject)deleteProject(curProject)">删除</button>
+        <div class="spacer"></div>
+        <button class="btn" onclick="genWeekly()">生成周报</button>
+        <button class="btn pri" onclick="openTaskAdd()">派单督办</button>
+      </div>
+      <div class="digest" id="dg-detail"></div>
+      <div class="card cut" id="dtHead" style="margin-bottom:14px"></div>
+
+      <div class="seg" id="dtTabs" style="margin-bottom:14px">
+        <button class="on" data-t="overview">总览</button>
+        <button data-t="nodes">关键节点</button>
+        <button data-t="people">关键人 · 联系人</button>
+        <button data-t="orgs">相关公司</button>
+        <button data-t="contract">项目合同</button>
+        <button data-t="staff">业务人员 · 费用</button>
+        <button data-t="doc">图纸 · 预算 · 概算</button>
+        <button data-t="bid">招投标</button>
+      </div>
+      <div id="dtBody"></div>
+    </section>
+
+    <!-- ============ 费用报销（业务人员平台） ============ -->
+    <section id="p-expense" class="hide">
+      <div class="ptitle"><h1>费用报销</h1><span class="sub">出差 / 招待 / 报销 申请与进度</span>
+        <div class="spacer"></div>
+        <span class="tip" style="margin-left:auto">
+          <span class="seg" id="expFilter">
+            <button class="on" data-f="all" onclick="expFilterSet('all')">全部</button>
+            <button data-f="pending" onclick="expFilterSet('pending')">待审批</button>
+            <button data-f="approved" onclick="expFilterSet('approved')">已通过</button>
+            <button data-f="rejected" onclick="expFilterSet('rejected')">已驳回</button>
+          </span>
+        </span>
+        <button class="btn" onclick="exportApplications()">导出</button>
+        <button class="btn pri" onclick="openReimbApply()">＋ 报销申请</button>
+        <button class="btn pri" onclick="openEntApply()">＋ 招待申请</button>
+        <button class="btn pri" onclick="openTripApply()">＋ 出差申请</button>
+      </div>
+      <div class="grid kpis" id="expKpi"></div>
+      <div class="row" style="margin-top:14px">
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px">月度报销趋势（近 6 月）</div><div class="chart" id="expTrend"></div></div>
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px">按费用类型分布</div><div class="chart" id="expCat"></div></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px">待审 / 已审 金额对比</div><div class="chart" id="expPending"></div></div>
+        <div class="card" style="flex:1;min-width:240px"><div class="sect" style="margin:0 0 10px" id="expRankTitle">申请人金额排名</div><div class="card scroll" style="border:0;background:transparent;padding:0"><div id="expRank"></div></div></div>
+      </div>
+      <div class="card scroll" style="margin-top:12px"><div id="expList"></div></div>
+    </section>
+
+    <!-- ============ 审批中心（管理层平台） ============ -->
+    <section id="p-approval" class="hide">
+      <div class="ptitle"><h1>审批中心</h1><span class="sub">出差 / 招待 / 报销 申请审批</span>
+        <div class="spacer"></div>
+        <span class="tip" style="margin-left:auto">
+          <span class="seg" id="aprFilter">
+            <button class="on" data-f="pending" onclick="apprFilterSet('pending')">待我审批</button>
+            <button data-f="approved" onclick="apprFilterSet('approved')">已通过</button>
+            <button data-f="rejected" onclick="apprFilterSet('rejected')">已驳回</button>
+            <button data-f="all" onclick="apprFilterSet('all')">全部</button>
+          </span>
+        </span>
+        <button class="btn" onclick="exportApplications()">导出</button>
+      </div>
+      <div class="grid kpis" id="aprKpi"></div>
+      <div class="card scroll" style="margin-top:12px"><div id="aprList"></div></div>
+    </section>
+
+    <!-- ============ 项目地图 ============ -->
+    <section id="p-map" class="hide">
+      <div class="ptitle"><h1>项目地图</h1><span class="sub">合规中国地图 · 项目标注 · 数字孪生</span>
+        <div class="spacer"></div>
+        <span class="tip">点击地图上的发光标注，进入项目数字孪生实时态势</span>
+      </div>
+      <div class="digest" id="dg-map"></div>
+      <div class="mapwrap">
+        <div class="card cut mapcard"><div id="mapSvg"></div>
+          <div class="note" style="margin-top:8px">地图为示意性科技绘制，台湾、海南及南海诸岛（九段线）均按中国领土完整呈现。项目聚焦甘肃。</div>
+        </div>
+        <div class="card maplist"><div class="sect" style="margin:0 0 10px">项目清单（点击查看孪生）</div><div id="mapList"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ 平台管理后台 ============ -->
+    <section id="p-admin" class="hide">
+      <div class="ptitle"><h1>平台管理后台</h1><span class="sub">用户 · 权限 · 系统 · 审计</span>
+        <div class="spacer"></div>
+        <button class="btn pri" onclick="openUserAdd()">＋ 新增账号</button>
+      </div>
+      <div class="sect tech">用户管理 <span class="tip">账号 / 角色 / 状态</span><span class="ln"></span></div>
+      <div class="card scroll"><div id="admUsers"></div></div>
+      <div class="sect tech" style="margin-top:16px">角色权限矩阵 <span class="tip">参考主流平台管理员权限设计</span><span class="ln"></span></div>
+      <div class="card"><div id="admMatrix"></div></div>
+      <div class="sect tech" style="margin-top:16px">年度经营目标 <span class="tip">仅管理员可改</span><span class="ln"></span></div>
+      <div class="card"><div id="admTargets"></div></div>
+      <div class="sect tech" style="margin-top:16px">系统维护 <span class="ln"></span></div>
+      <div class="card"><div id="admSys"></div></div>
+      <div class="sect tech" style="margin-top:16px">登录审计 <span class="tip">最近 200 条</span><span class="ln"></span></div>
+      <div class="card scroll"><div id="admAudit"></div></div>
+    </section>
+  </main>
+
+  <!-- 移动端底部 Tab -->
+  <nav class="bottomnav" id="bottomnav">
+    <div class="b on" data-page="dash"><span class="ei">◎</span>驾驶舱</div>
+    <div class="b" data-page="run"><span class="ei">➤</span>跑动</div>
+    <div class="b" data-page="contract"><span class="ei">✎</span>合同</div>
+    <div class="b" data-page="fin"><span class="ei">¥</span>财务</div>
+    <div class="b" data-page="staff"><span class="ei">⚑</span>人员</div>
+    <div class="b" data-page="people"><span class="ei">☻</span>关键人</div>
+    <div class="b" data-page="map"><span class="ei">⊕</span>地图</div>
+    <div class="b" data-page="detail"><span class="ei">▦</span>项目</div>
+    <div class="b" data-page="expense"><span class="ei">¥</span>费用</div>
+    <div class="b" data-page="opportunity"><span class="ei">✦</span>机会</div>
+    <div class="b" data-page="approval"><span class="ei">✓</span>审批</div>
+  </nav>
+</div>
+
+<!-- AI 助手 -->
+<div class="aifab hide" id="aiFab" onclick="AI.toggle()" title="AI 助手">🤖<span class="aibadge">AI</span></div>
+<div class="aipanel hide" id="aiPanel">
+  <div class="aihead">
+    <div class="ait"><span class="aidot"></span> 新煜 AI 助手</div>
+    <div class="aisub" id="aiMode">本地智能 · 离线可用</div>
+    <div class="spacer"></div>
+    <button class="aix" onclick="AI.toggle()">×</button>
+  </div>
+  <div class="aimsgs" id="aiMsgs"></div>
+  <div class="aichips" id="aiChips">
+    <button class="aichip" onclick="AI.send('本月营收多少')">本月营收多少</button>
+    <button class="aichip" onclick="AI.send('应收多少')">应收多少</button>
+    <button class="aichip" onclick="AI.send('司机合规率')">司机合规率</button>
+    <button class="aichip" onclick="AI.send('新增一个风电项目')">新增项目</button>
+    <button class="aichip" onclick="AI.send('生成周报')">生成周报</button>
+    <button class="aichip" onclick="AI.send('你能做什么')">你能做什么</button>
+  </div>
+  <div class="aiinput">
+    <input id="aiIn" placeholder="对我说：新增一个风电项目 / 本月营收多少 / 生成周报…" onkeydown="if(event.key==='Enter')AI.send()">
+    <button class="btn pri" onclick="AI.send()">发送</button>
+  </div>
+</div>
+
+<!-- 抽屉 -->
+<div class="mask" id="mask" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dh"><span class="t" id="dtitle">标题</span><span class="x" onclick="closeDrawer()">×</span></div>
+  <div class="db" id="dbody"></div>
+  <div class="df">
+    <button class="btn" onclick="closeDrawer()">取消</button>
+    <button class="btn pri" id="dfpri" onclick="runSubmit()">派单并通知</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div id="printArea" style="display:none"></div>
+<div class="install-banner" id="installBanner">
+  <div class="ib-t">安装「新煜工作台」到主屏幕，随时离线办公</div>
+  <button class="ib-x" onclick="document.getElementById('installBanner').classList.remove('on')">稍后</button>
+  <button class="ib-go" id="ibGo">安装</button>
+</div>
+
+<!-- 登录网关（账号 / 密码） -->
+<div class="logingate hide" id="loginGate"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/modules.js"></script>
+<script src="js/overview.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
